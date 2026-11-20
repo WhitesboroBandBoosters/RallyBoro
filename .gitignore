@@ -1,0 +1,22 @@
+# Local reference repositories and generated artifacts
+/research/
+/tmp/
+/output/
+
+# Local configuration and credentials
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.pem
+*.key
+
+# Dependencies, build outputs, and local tooling
+node_modules/
+dist/
+coverage/
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+Thumbs.db
