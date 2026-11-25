@@ -1,0 +1,26 @@
+title: RallyBoro Planning
+url: https://whitesborobandboosters.github.io
+baseurl: /RallyBoro
+markdown: kramdown
+plugins:
+  - jekyll-relative-links
+relative_links:
+  enabled: true
+  collections: false
+defaults:
+  - scope:
+      path: ''
+    values:
+      layout: planning
+exclude:
+  - AGENTS.md
+  - README.md
+  - pom.xml
+  - mvnw
+  - mvnw.cmd
+  - scripts
+  - target
+  - output
+  - tmp
+  - research
+  - docs/conversation-history.md

@@ -1,3 +1,7 @@
+---
+title: "Product direction and working thoughts"
+---
+
 # Product direction and working thoughts
 
 Named RallyBoro on 2026-11-20, to be hosted in the WhitesboroBandBoosters GitHub organization. EventManager is the earlier working name retained in historical notes.
@@ -12,7 +16,18 @@ Clarified 2026-11-09: mobile and desktop experiences have equal importance; mobi
 
 Updated 2026-11-19 with stakeholder proposals for consent-based phone disclosure and approval-required shifts, and a tentative preference for app-only notifications rather than direct texting.
 
-The [shareable design brief](design-brief.md) consolidates these notes into principles, goals, requested feature support, a proposed delivery sequence, and broad architecture. As clarified 2026-11-09, no implementation technology is selected.
+Updated 2026-11-25 with the Java/Spring Boot prototype direction and near-term self-hosting through Tailscale.
+
+The [shareable design brief](design-brief.md) consolidates these notes into principles, goals, requested feature support, a proposed delivery sequence, and broad architecture. The earlier 2026-11-09 position that no implementation technology was selected is superseded by the prototype direction below.
+
+## Prototype technology and hosting direction — 2026-11-25
+
+- Use Java and Spring Boot for the prototype, reflecting the maintainer's strong familiarity with both and preference for code they can understand and maintain.
+- Run on the maintainer's own infrastructure with access through Tailscale in the near term. Tailscale describes network access; the host machine, operating system, process/container setup, and exposure beyond the tailnet remain to be specified. This does not change the product's eventual public-event requirements.
+- Prioritize learning and validating volunteer staffing/signup behavior over optimizing for a managed-cloud platform or scale-to-zero deployment. A straightforward self-hosted application is acceptable.
+- The initial build foundation targets Java 25 with Spring Boot 4.2.0 dependency management and Maven 3.10.1 through a checked-in Maven Wrapper. See the [development setup](../README.md#development-setup) for build commands. No application sources have been implemented yet.
+- Database, frontend, authentication integration, and application deployment tooling remain undecided. PostgreSQL and strict TypeScript were recommended in discussion but have not been selected.
+- The implementation can be rewritten in another language after prototyping if experience warrants it. A rewrite is an option, not a planned requirement; preserve clear API and data boundaries without speculative abstraction.
 
 ## Direction change
 
@@ -55,4 +70,4 @@ New OAuth client registrations require preliminary BAND review before client cre
 - When optional credits are enabled, who holds them, how are they granted/purchased, what consumes them, and how do occurrence/series rules, refunds, payment adapters, and cross-deployment migration work?
 - Who may export/import personal data or an organization, and how are private contact records transferred without disclosing them to organizers? How are identities, memberships, historical attribution, template revisions, encryption, and existing destination data reconciled across deployments?
 
-The earlier React/TypeScript PWA and Cloudflare proposal is historical technical context, not a selected stack or current default. Choose technology after defining the signup MVP, privacy model, portability, messaging economics, and payment behavior.
+The earlier React/TypeScript PWA and Cloudflare proposal is historical technical context, not a selected stack or current default. Java and Spring Boot are the current prototype direction; evaluate the remaining technology choices against the signup MVP, privacy model, portability, notification needs, and optional payment behavior.

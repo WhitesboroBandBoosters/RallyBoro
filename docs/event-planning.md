@@ -1,3 +1,7 @@
+---
+title: "Event Planning Product Scope"
+---
+
 # Event Planning Product Scope
 
 ## Status: deferred after the 2026-11-07 direction change

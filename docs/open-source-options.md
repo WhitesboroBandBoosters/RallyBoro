@@ -1,3 +1,7 @@
+---
+title: "Open-source options: Inscriva and OpenVolunteer"
+---
+
 # Open-source options: Inscriva and OpenVolunteer
 
 Reviewed 2026-11-07. This is a source and documentation review, not a running-product evaluation. No dependencies were installed, applications started, or deployments made. Existing EventManager requirements remain unchanged.

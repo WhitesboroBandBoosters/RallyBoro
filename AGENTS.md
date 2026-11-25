@@ -10,6 +10,8 @@ The active scope is volunteer staffing/signup. See docs/product-direction.md for
 
 See docs/design-brief.md for the shareable product/design overview and proposed broad architecture. It distinguishes requested capabilities, proposed delivery scope, and open decisions.
 
+See roadmap/README.md for the proposed implementation initiatives and release boundaries. Prioritize the runnable foundation and controlled staffing pilot in phases 1–2; later initiatives are not authorization to implement the entire roadmap at once. Resolve each phase's blocking decisions before implementation.
+
 ## Current direction (supersedes earlier planning-first assumptions below)
 
 - API first and agent friendly; apply the same authorization and privacy boundaries to agents and the UI.
@@ -25,10 +27,10 @@ See docs/design-brief.md for the shareable product/design overview and proposed 
 - Support requested approval-required shifts: pending requests do not reserve capacity; volunteers can see a pending-request count and still apply. Only approved assignments consume capacity. Approval must enforce capacity and conflict rules; qualification-review details and interaction with waitlists remain open.
 - Slack/Discord integrations for event owners are possibilities, not MVP commitments. BAND API findings are recorded in docs/product-direction.md.
 - Publish the code as open source; Apache-2.0 or MIT are candidates, with no license selected yet.
-- No implementation technology is selected (confirmed 2026-11-09). Earlier stack choices below are historical candidates, not current defaults. Evaluate technology against signup, payments, verified contact channels, privacy, portability, and abuse controls before selecting it. Near-zero hosting is a goal, not an assumption that text delivery or payment processing is free.
+- Prototype direction (2026-11-25): use Java and Spring Boot, reflecting the maintainer's strong familiarity with both. The build foundation targets Java 25 with Spring Boot 4.2.0 dependency management and Maven 3.10.1 via the checked-in Maven Wrapper; use `./mvnw` for builds. Near-term hosting will be on the maintainer's own infrastructure with access through Tailscale. The host machine/runtime, database, frontend, and application deployment tooling remain open. Managed-cloud hosting and scale-to-zero are not prototype prerequisites. Work through product behavior first; another implementation language can be considered after prototyping, without treating a rewrite as required. Earlier stack choices below are historical candidates, not current defaults. Evaluate remaining choices against signup, privacy, portability, notifications, optional payments, and abuse controls.
 - The historical planning domain and staged plan below are retained for later reference, not the active MVP implementation order. Define a staffing/signup MVP before substantial application code.
 
-This repository is at its bootstrap stage. Treat this document as product and architecture context, not permission to implement the entire roadmap at once.
+This repository is at its bootstrap stage, with Maven build configuration but no application sources yet. Treat this document as product and architecture context, not permission to implement the entire roadmap at once.
 
 ## Earlier planning product goals (retained for later)
 
@@ -79,7 +81,7 @@ Do not build a complex offline-first replicated-data or synchronization system i
 - Prefer straightforward implementation, clear data relationships, simple deployments, explicit service boundaries, and maintainability over cleverness. Earlier TypeScript and relational database proposals remain technology candidates.
 - Make local development resemble production and test business and authorization rules automatically.
 - Never expose privileged persistence operations or authorization decisions directly to the client, regardless of the eventual storage technology.
-- Avoid microservices, Kubernetes, always-running compute, premature abstraction, premature multi-tenancy, custom auth protocols, and speculative offline synchronization.
+- Avoid microservices, Kubernetes, premature abstraction, premature multi-tenancy, custom auth protocols, and speculative offline synchronization. A straightforward self-hosted application is acceptable for the prototype; the earlier preference to avoid always-running compute does not block this direction.
 - Do not add a paid dependency merely for convenience when a maintainable free option meets the need; likewise, do not add major complexity merely to avoid a hypothetical small future charge.
 
 ## Historical planning-first vertical-slice plan (superseded)

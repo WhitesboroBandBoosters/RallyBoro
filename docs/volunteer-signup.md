@@ -1,3 +1,7 @@
+---
+title: "Volunteer Staffing and Signup"
+---
+
 # Volunteer Staffing and Signup
 
 ## Status and boundary
@@ -26,7 +30,7 @@ Planning and signup share an event instance but remain separate sections. Keep p
 
 ## Mobile and desktop experience, and notifications
 
-Mobile and desktop experiences are equally important, including volunteer signup and organizer event/shift management. Neither is the primary target at the other's expense. A responsive web experience remains the product direction; the earlier PWA proposal is an implementation candidate, and no technology is selected. As of 2026-11-19, the preferred short-term direction is notifications through the mobile app and no built-in direct texting, superseding the earlier text/email preference as the initial delivery proposal. This remains tentative and does not select a native app, PWA, or push provider. Resolve verification, account-free signup, returning to manage requests, and access to updates for desktop-only users or people without notification permission. App delivery is intended to reduce abuse opportunities, not eliminate the need for authorization, limits, and abuse controls. Eligibility remains deployment policy, separate from visibility and optional payment.
+Mobile and desktop experiences are equally important, including volunteer signup and organizer event/shift management. Neither is the primary target at the other's expense. A responsive web experience remains the product direction; the earlier PWA proposal is an implementation candidate, and frontend and notification technologies remain open. The Java/Spring Boot backend prototype direction is recorded in [product-direction.md](product-direction.md). As of 2026-11-19, the preferred short-term direction is notifications through the mobile app and no built-in direct texting, superseding the earlier text/email preference as the initial delivery proposal. This remains tentative and does not select a native app, PWA, or push provider. Resolve verification, account-free signup, returning to manage requests, and access to updates for desktop-only users or people without notification permission. App delivery is intended to reduce abuse opportunities, not eliminate the need for authorization, limits, and abuse controls. Eligibility remains deployment policy, separate from visibility and optional payment.
 
 ## Stakeholder proposal: consent-based phone sharing
 

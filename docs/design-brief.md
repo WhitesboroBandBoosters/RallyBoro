@@ -1,10 +1,14 @@
+---
+title: "RallyBoro \u2014 Product and Architecture Design Brief"
+---
+
 # RallyBoro — Product and Architecture Design Brief
 
-**Working draft 0.5 · November 20, 2026 · For discussion**
+**Working draft 0.6 · November 25, 2026 · For discussion**
 
 RallyBoro helps organizers staff community events and helps volunteers find and manage shifts, with equal importance given to mobile and desktop experiences. It is designed for occasional use, low operating cost, private contact information, and deployment in infrastructure chosen by the operator.
 
-The first product focus is **volunteer staffing and signup**. Committee planning and task management are a later expansion. This brief consolidates the current direction into a standalone review document. Requested capabilities are distinguished from proposed delivery scope and unresolved decisions. It does not select implementation technologies or commit every requested capability to the first release.
+The first product focus is **volunteer staffing and signup**. Committee planning and task management are a later expansion. This brief consolidates the current direction into a standalone review document. Requested capabilities are distinguished from proposed delivery scope and unresolved decisions. Java and Spring Boot are the prototype direction; the remaining stack choices and first-release feature boundary are open.
 
 ## 1. Purpose and audience
 
@@ -113,7 +117,9 @@ Committee tasks, comments, planning sections, and reviewed template improvements
 
 ## 7. Broad architecture
 
-**Proposed logical boundaries; no language, framework, database, cloud, or provider is selected.** These boundaries can live within one maintainable application. They do not require separate services.
+**Prototype direction: Java and Spring Boot, self-hosted on the maintainer's infrastructure with access through Tailscale.** This reflects the maintainer's strong familiarity with Java and Spring Boot. The build foundation targets Java 25 with Spring Boot 4.2.0 dependency management and Maven 3.10.1 through a checked-in Maven Wrapper. Database, frontend, and application deployment tooling remain open. Tailscale specifies network access rather than the application runtime; public exposure and the host setup remain to be defined. Managed-cloud hosting and scale-to-zero are not prerequisites for learning from the prototype. Another implementation language can be considered afterward if warranted; a rewrite is not required or planned by this decision.
+
+The following logical boundaries are proposed within one maintainable application. They do not require separate services.
 
 | Boundary | Responsibility |
 | --- | --- |
@@ -151,8 +157,8 @@ Define contact retention/deletion, volunteer consent for migration, historical a
 6. **Staffing edge cases:** Who approves restricted shifts and checks qualifications? What happens when pending requests outnumber capacity, a shift fills before review, or pending requests overlap? How do waitlists, group signup, and post-signup changes interact?
 7. **Contact consent, trust, and portability:** Should phone disclosure be optional or event-required? Who is the remembered organizer, how is permission withdrawn, and does it cover exports or migration? Who handles keys and protected data, including guardian details and independent host access?
 8. **Calendars and mobile notifications:** What is the first supported integration method, and what privacy and delivery guarantees are practical?
-9. **Technology and license:** Select implementation tools, operating model, providers, and a permissive license after evaluating these requirements.
+9. **Remaining technology and license choices:** With Java/Spring Boot, the Maven build foundation, and near-term self-hosting through Tailscale as the prototype direction, select the database, frontend, host/runtime setup, application deployment tooling, providers, and a permissive license after evaluating these requirements.
 
 ## 10. Relationship to project notes
 
-This brief is the shareable overview. The detailed working material is retained in [Product direction](product-direction.md), [Volunteer staffing and signup](volunteer-signup.md), and [Deferred committee planning](event-planning.md). Earlier research into existing products is inspiration only. Earlier technology choices are historical candidates, not current selections.
+This brief is the shareable overview. The detailed working material is retained in [Product direction](product-direction.md), [Volunteer staffing and signup](volunteer-signup.md), and [Deferred committee planning](event-planning.md). Earlier research into existing products is inspiration only. Technology proposals predating the 2026-11-25 Java/Spring Boot prototype direction are historical candidates, not current selections.

@@ -12,6 +12,7 @@
 *.key
 
 # Dependencies, build outputs, and local tooling
+target/
 node_modules/
 dist/
 coverage/
