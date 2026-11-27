@@ -4,7 +4,7 @@ title: "RallyBoro \u2014 Product and Architecture Design Brief"
 
 # RallyBoro — Product and Architecture Design Brief
 
-**Working draft 0.6 · November 25, 2026 · For discussion**
+**Working draft 0.7 · November 27, 2026 · For discussion**
 
 RallyBoro helps organizers staff community events and helps volunteers find and manage shifts, with equal importance given to mobile and desktop experiences. It is designed for occasional use, low operating cost, private contact information, and deployment in infrastructure chosen by the operator.
 
@@ -21,7 +21,7 @@ Primary participants are volunteers, people registering on behalf of others, eve
 ## 2. Project principles
 
 1. **Mobile and desktop are equally important.** Signup and organizer workflows must work well on both. Adapt layouts and interactions to each device without treating either experience as secondary.
-2. **API first and agent friendly.** Core actions should be available through a documented application API. The interface and automated clients use the same business rules and authorization boundaries.
+2. **API first and agent friendly.** Core actions should be available through a documented GraphQL application API. The interface and automated clients use the same business rules and authorization boundaries.
 3. **Contacts are private by default.** All contact information is encrypted at rest. Stakeholders propose a scoped exception for volunteer-authorized phone sharing, including an event-required disclosure option and remembered permission for the same organizer. This policy is under discussion; it does not grant unrestricted access or permission to disclose email addresses. APIs, reports, integrations, and migration tools must enforce the eventual consent boundaries.
 4. **Communication is controlled and accountable.** The current preference is app-only notifications in the short term, without built-in direct texting. This is tentative and does not select an app or push technology. Contact disclosure and notification permission are separate, and abuse controls remain necessary.
 5. **Simple, economical operation.** Minimize administration and ongoing infrastructure cost. Core event functionality must work without a payment system. Hosts may optionally use event credits and choose their own rates and payment processors; delivery and abuse controls remain necessary regardless of pricing.
@@ -117,14 +117,14 @@ Committee tasks, comments, planning sections, and reviewed template improvements
 
 ## 7. Broad architecture
 
-**Prototype direction: Java and Spring Boot, self-hosted on the maintainer's infrastructure with access through Tailscale.** This reflects the maintainer's strong familiarity with Java and Spring Boot. The build foundation targets Java 25 with Spring Boot 4.2.0 dependency management and Maven 3.10.1 through a checked-in Maven Wrapper. PostgreSQL, JDBC/Flyway, a responsive Thymeleaf interface, and Docker Compose application packaging are selected for the foundation. See the [foundation decisions](decisions/001-foundation.md) and [running guide](running.md). PostgreSQL deployment and credentials are independently managed infrastructure outside project commits. Tailscale specifies network access rather than the application runtime; public exposure and the host setup remain to be defined. Managed-cloud hosting and scale-to-zero are not prerequisites for learning from the prototype. Another implementation language can be considered afterward if warranted; a rewrite is not required or planned by this decision.
+**Prototype direction: Java and Spring Boot, self-hosted on the maintainer's infrastructure with access through Tailscale.** This reflects the maintainer's strong familiarity with Java and Spring Boot. The build foundation targets Java 25 with Spring Boot 4.2.0 dependency management and Maven 3.10.1 through a checked-in Maven Wrapper. PostgreSQL, JDBC/Flyway, a temporary responsive Thymeleaf shell, and Docker Compose application packaging are selected for the foundation. See the [foundation decisions](decisions/001-foundation.md) and [running guide](running.md). PostgreSQL deployment and credentials are independently managed infrastructure outside project commits. Tailscale specifies network access rather than the application runtime; public exposure and the host setup remain to be defined. Managed-cloud hosting and scale-to-zero are not prerequisites for learning from the prototype. Another implementation language can be considered afterward if warranted; a rewrite is not required or planned by this decision.
 
 The following logical boundaries are proposed within one maintainable application. They do not require separate services.
 
 | Boundary | Responsibility |
 | --- | --- |
 | Mobile and desktop interface | Event discovery/access, signup, personal registrations, and organizer management, with equal importance given to mobile and desktop usability. A responsive web experience is the current product direction; installation and notification details need validation. |
-| Application API | A documented contract for the interface, agents, and integrations; input validation, consistent errors, authorization, and safe retry behavior. |
+| Application API | GraphQL for browser users, agents, and integrations; a schema contract for the interface, agents, and integrations; input validation, consistent errors, authorization, and safe retry behavior. |
 | Identity and authorization | Separate authentication from permissions; scope actions to the relevant person, event, or organization. Use established identity components rather than custom authentication protocols. |
 | Event and staffing domain | Organizations, templates, series, occurrences, jobs, shifts, registrations, waitlists, visibility, and signup availability. Enforce capacity and business invariants at the server. |
 | Deployment policy and optional credits | Apply host-configured eligibility and optional event-credit rules without hard-coded prices or required payment infrastructure. Keep purchase/payment-provider details outside the staffing domain. |
@@ -132,6 +132,8 @@ The following logical boundaries are proposed within one maintainable applicatio
 | Persistence and background work | Durable domain records, migrations, historical attribution, and reliable deferred work where needed. Prefer a model that preserves relationships and supports atomic capacity changes; storage technology remains open. |
 | External adapters | Replaceable interfaces for identity, app notifications, calendar outputs, optional payment processors, and later integrations. Built-in SMS is not part of the preferred initial scope; verification channels remain open. Authenticate applicable provider callbacks. |
 | Portability and operations | Versioned import/export, backups and restore, deployment configuration, protected operational logging, and migration verification. |
+
+The staffing interface will be an interactive frontend using the shared GraphQL API, with strict typing and schema-derived client operation types. The initiative-1 Thymeleaf shell is temporary. Framework/client selection remains open; see [decision 002](decisions/002-graphql-and-interactive-ui.md).
 
 The principal request flow is: a client calls the API; the application authorizes the action and enforces domain rules; durable storage records the result; eligible follow-up work goes through controlled adapters. A client never receives privileged database access or decides authorization for itself.
 

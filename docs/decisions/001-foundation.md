@@ -6,9 +6,11 @@ title: Foundation architecture decisions
 
 Accepted for initiative 1 · November 27, 2026
 
+**Superseded in part:** [Decision 002](002-graphql-and-interactive-ui.md) requires GraphQL for business operations and an interactive typed frontend. Thymeleaf and the JSON status route describe only the existing foundation.
+
 ## Application and interface
 
-Use Java 25 and Spring Boot 4.2.0 as already established. Use Spring MVC and Thymeleaf for the first responsive interface, backed by an application-owned JSON API. Compared with a React/TypeScript SPA, this keeps the first runnable slice in familiar Java, HTML, and CSS without a second build toolchain. UI controllers may render pages, but future business operations must live in shared application services used by API and UI. A richer browser client can follow if the workflows need it.
+Use Java 25 and Spring Boot 4.2.0 as already established. Use Spring MVC and Thymeleaf for the first responsive interface, backed by an application-owned JSON API. Compared with a React/TypeScript SPA, this keeps the first runnable slice in familiar Java, HTML, and CSS without a second build toolchain. UI controllers may render pages, but future business operations must live in shared application services used by API and UI. An interactive client is now required for initiative 2; its framework remains to be selected (decision 002).
 
 Use JDBC and explicit SQL rather than introducing an ORM for the tiny foundation schema. PostgreSQL is the selected database. Use Flyway SQL migrations instead of ad hoc startup DDL; compared with Liquibase, SQL migrations add less machinery for this PostgreSQL-first prototype. Never edit an applied migration; add a new version. Flyway clean is disabled.
 
@@ -26,7 +28,7 @@ Select Spring Security OAuth2/OIDC client support, using an established provider
 
 ## API and diagnostics
 
-Version application endpoints under `/api/v1`. Publish the small contract in [API conventions](../api.md). Use normal HTTP status codes and RFC 9457 problem details for supported framework errors. No database exception text, stack trace, contact, or secret should be returned. The aggregate health endpoint includes database connectivity; detailed actuator endpoints are not exposed. Current endpoints are read-only and contain no user data. Future write endpoints require authorization, validation, explicit retry semantics, and CSRF protection for browser session clients.
+The existing diagnostic status route is under `/api/v1`; this is not the business API versioning strategy. Decision 002 selects GraphQL for initiative-2 business operations. Publish the small contract in [API conventions](../api.md). Use normal HTTP status codes and RFC 9457 problem details for supported framework errors. No database exception text, stack trace, contact, or secret should be returned. The aggregate health endpoint includes database connectivity; detailed actuator endpoints are not exposed. Current endpoints are read-only and contain no user data. Future write endpoints require authorization, validation, explicit retry semantics, and CSRF protection for browser session clients.
 
 ## Verification
 

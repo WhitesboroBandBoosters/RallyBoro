@@ -14,6 +14,7 @@ See roadmap/README.md for the proposed implementation initiatives and release bo
 
 ## Current direction (supersedes earlier planning-first assumptions below)
 
+- The user/agent business API must be GraphQL. Initiative 2 needs an interactive responsive frontend with strong typing and schema-derived operation types; the Thymeleaf landing page is a temporary foundation shell. Framework/client selection remains open. See docs/decisions/002-graphql-and-interactive-ui.md.
 - API first and agent friendly; apply the same authorization and privacy boundaries to agents and the UI.
 - Support import/export to move personal and organization data between independently hosted deployments, including previous history and templates. Preserve relationships and contact privacy during migration; organization exports must not reveal contacts outside authorized scope; whether the proposed phone-sharing consent permits exports remains unresolved. Transfer format, permissions, identity mapping, and encryption/key handling remain to be designed.
 - Mobile and desktop experiences are equally important for volunteer signup and organizer workflows; neither is secondary. Research notification options later; no additional notification channel is selected by this requirement.

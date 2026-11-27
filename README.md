@@ -6,7 +6,7 @@ The goal is simple, privacy-conscious event coordination: organizations, reusabl
 
 ## Project status
 
-Initiative 1 implements the runnable Java 25/Spring Boot foundation: a responsive Thymeleaf shell, a small JSON status API, PostgreSQL connectivity, Flyway migrations, container packaging, and database-backed integration tests. Event staffing is initiative 2 and has not been implemented yet. PostgreSQL deployment and credentials are independently managed infrastructure, excluded from project commits.
+Initiative 1 implements the runnable Java 25/Spring Boot foundation: a responsive Thymeleaf shell, a small JSON status API, PostgreSQL connectivity, Flyway migrations, container packaging, and database-backed integration tests. Event staffing is initiative 2 and has not been implemented yet. Its required direction is an interactive typed frontend over GraphQL; the Thymeleaf page and JSON status route are temporary foundation capabilities. See [decision 002](docs/decisions/002-graphql-and-interactive-ui.md). PostgreSQL deployment and credentials are independently managed infrastructure, excluded from project commits.
 
 ## Development setup
 

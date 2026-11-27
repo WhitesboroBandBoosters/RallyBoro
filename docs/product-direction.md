@@ -29,6 +29,10 @@ The [shareable design brief](design-brief.md) consolidates these notes into prin
 - The foundation uses PostgreSQL with JDBC/Flyway, Spring MVC/Thymeleaf, and a non-root Docker app container through Tailscale Serve. Spring Security OIDC is selected for phase-2 authentication integration. See the [foundation decisions](decisions/001-foundation.md); the database deployment and all credentials remain external infrastructure.
 - The implementation can be rewritten in another language after prototyping if experience warrants it. A rewrite is an option, not a planned requirement; preserve clear API and data boundaries without speculative abstraction.
 
+## API and frontend clarification — 2026-11-27
+
+GraphQL is required for the user/agent application API. Build an interactive responsive frontend rather than carrying the temporary Thymeleaf shell forward as a form-post product UI. Use strict typing and schema-derived operation types; frontend framework/client selection remains open. See [decision 002](decisions/002-graphql-and-interactive-ui.md) and initiative-2 issues #17–#18. The deployed foundation does not yet implement these capabilities.
+
 ## Direction change
 
 Focus on **volunteer staffing/signup first**, to reach an MVP before adding committee planning. Preserve the earlier planning design for later. Inscriva and OpenVolunteer can provide inspiration, but neither will be adopted as the actual solution. Their source review remains in [open-source-options.md](open-source-options.md).

@@ -18,7 +18,7 @@ Start RallyBoro from a fresh checkout and reach a minimal responsive page and he
 
 ## Decisions before implementation
 
-The [foundation decision record](../docs/decisions/001-foundation.md) selects Thymeleaf, JDBC/Flyway, Spring Security OIDC for phase 2, and Docker/Tailscale access. Define how configuration and encryption keys will be supplied. Public pages, notification providers, and payment adapters do not need to be selected here.
+The [foundation decision record](../docs/decisions/001-foundation.md) records the temporary Thymeleaf shell, JDBC/Flyway, Spring Security OIDC for phase 2, and Docker/Tailscale access. [Decision 002](../docs/decisions/002-graphql-and-interactive-ui.md) supersedes its product UI/API assumptions: initiative 2 uses an interactive typed frontend and GraphQL. Define how configuration and encryption keys will be supplied. Public pages, notification providers, and payment adapters do not need to be selected here.
 
 ## Completion evidence
 
