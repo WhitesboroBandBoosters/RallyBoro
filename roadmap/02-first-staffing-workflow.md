@@ -8,6 +8,22 @@ title: "Phase 2 \u2014 First staffing workflow"
 
 An organizer creates one dated event with jobs and shifts. An invited pilot volunteer opens its link, signs up, reviews their registration, and cancels. The organizer sees coverage and can assign or remove a volunteer. This is the first useful product milestone.
 
+## What the pilot must look like
+
+The delivered pilot must be recognizable event staffing software with real saved data and working interactions:
+
+| Screen | What a tester can do | Delivery issue |
+| --- | --- | --- |
+| Organizer events | See the organization’s events, dates, and open/closed state; create or return to an event. | #11 |
+| Event and staffing editor | Set event details/timezone, add jobs and shifts with capacity, save changes, and deliberately open or close signup. | #11 |
+| Volunteer event page | Follow an event link, understand available shifts and remaining places, and receive a clear confirmed or rejected signup result. | #12 |
+| My registrations | Review current commitments and cancel an authorized registration. | #13 |
+| Organizer coverage | See filled/unfilled places, inspect authorized assignments, and assign or remove a volunteer. | #14 |
+
+Use coherent navigation, readable dates/times, clear event and registration status, accessible controls, and useful empty/loading/error states across narrow and wide layouts. All business actions use GraphQL and persist in PostgreSQL. A frontend scaffold, static sample event, or API-only demonstration does not meet this initiative’s release boundary.
+
+Build these as small complete slices. After the prerequisites, #11 should already demonstrate creating an event and returning to its saved staffing structure in the real interface. Subsequent issues extend that same application with signup, cancellation, and coverage.
+
 ## UI and API prerequisite
 
 The user/agent business API is GraphQL, and the pilot UI must be interactive with strong typing, not a continuation of the temporary Thymeleaf/form-post shell. [Decision 002](../docs/decisions/002-graphql-and-interactive-ui.md) defines the direction. Complete [frontend/client selection #17](https://github.com/WhitesboroBandBoosters/RallyBoro/issues/17) and [GraphQL foundation #18](https://github.com/WhitesboroBandBoosters/RallyBoro/issues/18), coordinating identity with #10, before the first staffing slice (#11). Framework selection remains open.
@@ -23,6 +39,10 @@ The user/agent business API is GraphQL, and the pilot UI must be interactive wit
 ## Decisions before real pilot data
 
 Define the minimal roles, event access states, participant identity, timezone/interval rules, and what organizer views reveal. Settle minimum contact collection and verification, retention, encryption/key recovery, and secure session handling. Prefer avoiding unnecessary contact collection; any collected contacts must satisfy the existing encryption and privacy requirements, including logs and backups. Organizer contact disclosure is not authorized by this phase.
+
+## Required pilot demonstration
+
+Starting with an empty organization, an organizer creates a dated event with two jobs and several shifts, saves it, reloads it, and opens signup. A second authenticated pilot account follows the link and takes an available shift. The organizer sees coverage update; the volunteer finds the commitment under My registrations and cancels it; both views show the freed capacity. Repeat representative interactions at mobile and desktop widths. Use synthetic identities until phase-2 privacy safeguards pass. Capture this demonstration in #15 alongside API/concurrency checks.
 
 ## Completion evidence
 
