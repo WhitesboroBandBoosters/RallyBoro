@@ -25,8 +25,8 @@ The [shareable design brief](design-brief.md) consolidates these notes into prin
 - Use Java and Spring Boot for the prototype, reflecting the maintainer's strong familiarity with both and preference for code they can understand and maintain.
 - Run on the maintainer's own infrastructure with access through Tailscale in the near term. Tailscale describes network access; the host machine, operating system, process/container setup, and exposure beyond the tailnet remain to be specified. This does not change the product's eventual public-event requirements.
 - Prioritize learning and validating volunteer staffing/signup behavior over optimizing for a managed-cloud platform or scale-to-zero deployment. A straightforward self-hosted application is acceptable.
-- The initial build foundation targets Java 25 with Spring Boot 4.2.0 dependency management and Maven 3.10.1 through a checked-in Maven Wrapper. See the [development setup](../README.md#development-setup) for build commands. No application sources have been implemented yet.
-- Database, frontend, authentication integration, and application deployment tooling remain undecided. PostgreSQL and strict TypeScript were recommended in discussion but have not been selected.
+- The initial build foundation targets Java 25 with Spring Boot 4.2.0 dependency management and Maven 3.10.1 through a checked-in Maven Wrapper. See the [development setup](../README.md#development-setup) for build commands. Initiative 1 now provides a runnable application foundation; staffing follows in initiative 2.
+- The foundation uses PostgreSQL with JDBC/Flyway, Spring MVC/Thymeleaf, and a non-root Docker app container through Tailscale Serve. Spring Security OIDC is selected for phase-2 authentication integration. See the [foundation decisions](decisions/001-foundation.md); the database deployment and all credentials remain external infrastructure.
 - The implementation can be rewritten in another language after prototyping if experience warrants it. A rewrite is an option, not a planned requirement; preserve clear API and data boundaries without speculative abstraction.
 
 ## Direction change

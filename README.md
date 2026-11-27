@@ -6,27 +6,17 @@ The goal is simple, privacy-conscious event coordination: organizations, reusabl
 
 ## Project status
 
-The project currently contains product requirements, design documents, and a Maven build foundation. No application has been implemented. The prototype direction is Java with Spring Boot, self-hosted on the maintainer's infrastructure with access through Tailscale. Database, frontend, application deployment tooling, and the final open-source license remain open. The implementation language can be revisited after prototyping. Some requirements remain proposals or open questions; see the design brief for their status.
+Initiative 1 implements the runnable Java 25/Spring Boot foundation: a responsive Thymeleaf shell, a small JSON status API, PostgreSQL connectivity, Flyway migrations, container packaging, and database-backed integration tests. Event staffing is initiative 2 and has not been implemented yet. PostgreSQL deployment and credentials are independently managed infrastructure, excluded from project commits.
 
 ## Development setup
 
-Install a Java 25 JDK and Docker Engine with Docker Compose and Buildx. Ensure your account can access Docker. Use the checked-in Maven Wrapper; a separate Maven installation is unnecessary. The wrapper downloads Maven 3.10.1 on first use and validates its SHA-256 checksum. Initial builds require internet access to download Maven and dependencies.
+Use Java 25, Docker, and the checked-in Maven Wrapper (Maven 3.10.1):
 
 ```bash
-java -version
-javac -version
-docker version
-docker compose version
-docker buildx version
-./mvnw --version
-./mvnw --batch-mode clean verify
+./mvnw --batch-mode --no-transfer-progress clean verify
 ```
 
-On Windows, use `mvnw.cmd` in place of `./mvnw`.
-
-The build targets Java 25 and uses the Spring Boot 4.2.0 parent to manage dependency and build-plugin versions. Add dependencies in `pom.xml`; omit individual versions when Spring Boot manages them. Run `./mvnw dependency:tree` to inspect resolved dependencies. Build outputs are written to the ignored `target/` directory.
-
-This foundation includes the core Spring Boot and test starters. There are no application sources or tests yet, so verification currently checks build configuration and dependency resolution. Add the Spring Boot Maven plugin when introducing the application entry point to produce an executable application. No database or frontend framework is selected by this setup.
+The integration tests automatically use disposable PostgreSQL containers. See [running and recovery](docs/running.md) for application configuration, startup, tailnet access, and backup/restore; [architecture decisions](docs/decisions/001-foundation.md) for selected tools; and [API conventions](docs/api.md) for current endpoints. The wrapper pins Maven 3.10.1 and validates its distribution checksum; no separate Maven install is needed. Spring Boot manages dependency/plugin versions in `pom.xml`; build output is ignored under `target/`. On Windows use `mvnw.cmd`. Database passwords and local connection files must stay outside the checkout.
 
 ## Planning space
 
