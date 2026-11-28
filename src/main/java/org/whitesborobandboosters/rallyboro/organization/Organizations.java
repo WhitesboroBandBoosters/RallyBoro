@@ -1,12 +1,21 @@
 package org.whitesborobandboosters.rallyboro.organization;
 
-import java.time.OffsetDateTime;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
-import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.whitesborobandboosters.rallyboro.persistence.AccessAuditEntity;
+import org.whitesborobandboosters.rallyboro.persistence.EventManagerEntity;
+import org.whitesborobandboosters.rallyboro.persistence.EventManagerId;
+import org.whitesborobandboosters.rallyboro.persistence.InvitationEntity;
+import org.whitesborobandboosters.rallyboro.persistence.MembershipEntity;
+import org.whitesborobandboosters.rallyboro.persistence.MembershipId;
+import org.whitesborobandboosters.rallyboro.persistence.OffsetPage;
+import org.whitesborobandboosters.rallyboro.persistence.OrganizationEntity;
+import org.whitesborobandboosters.rallyboro.persistence.PersistenceRepositories;
 import org.whitesborobandboosters.rallyboro.security.Access;
 import org.whitesborobandboosters.rallyboro.security.Access.Actor;
 import org.whitesborobandboosters.rallyboro.security.Accounts;
@@ -17,11 +26,11 @@ import org.whitesborobandboosters.rallyboro.staffing.Models.Member;
 @Service
 @Transactional(readOnly = true)
 public class Organizations {
-  private final JdbcTemplate db;
+  private final PersistenceRepositories data;
   private final Access access;
 
-  public Organizations(JdbcTemplate db, Access access) {
-    this.db = db;
+  public Organizations(PersistenceRepositories data, Access access) {
+    this.data = data;
     this.access = access;
   }
 
@@ -46,18 +55,21 @@ public class Organizations {
     if (!valid) throw new DomainException(code, message);
   }
 
-  private static void page(int first, int offset) {
+  private static DomainException unavailable() {
+    return new DomainException("NOT_FOUND", "This organization is unavailable.");
+  }
+
+  private static OffsetPage page(int first, int offset, Sort sort) {
     require(
         first >= 1 && first <= 100 && offset >= 0 && offset <= 10000,
         "INVALID_INPUT",
         "Use a page size of 1–100 and offset of 0–10000.");
+    return new OffsetPage(first, offset, sort);
   }
 
-  private Map<String, Object> organization(UUID id, boolean lock) {
-    var rows =
-        db.queryForList("SELECT * FROM organization WHERE id=?" + (lock ? " FOR UPDATE" : ""), id);
-    require(!rows.isEmpty(), "NOT_FOUND", "This organization is unavailable.");
-    return rows.getFirst();
+  private OrganizationEntity organization(UUID id, boolean lock) {
+    return (lock ? data.organizations().lockById(id) : data.organizations().findById(id))
+        .orElseThrow(Organizations::unavailable);
   }
 
   private void manager(Actor actor, UUID org) {
@@ -66,13 +78,12 @@ public class Organizations {
   }
 
   private void audit(Actor actor, UUID org, String action, UUID target) {
-    db.update(
-        "INSERT INTO access_audit(id,organization_id,actor_id,action,target_id) VALUES (?,?,?,?,?)",
-        UUID.randomUUID(),
-        org,
-        actor.id(),
-        action,
-        target);
+    var entry = new AccessAuditEntity(UUID.randomUUID());
+    entry.setOrganizationId(org);
+    entry.setActorId(actor.id());
+    entry.setAction(action);
+    entry.setTargetId(target);
+    data.audit().persist(entry);
   }
 
   @Transactional
@@ -82,30 +93,27 @@ public class Organizations {
         name != null && !name.isBlank() && name.length() <= 120,
         "INVALID_INPUT",
         "Organization name must be 1–120 characters.");
-    db.queryForList("SELECT id FROM app_user WHERE id=? FOR UPDATE", actor.id());
+    data.users().lockById(actor.id()).orElseThrow(Organizations::unavailable);
     require(
-        db.queryForObject(
-                "SELECT count(*) FROM membership WHERE user_id=? AND can_manage",
-                Integer.class,
-                actor.id())
-            < 20,
+        data.memberships().countByIdUserIdAndCanManageTrue(actor.id()) < 20,
         "LIMIT_EXCEEDED",
         "You can manage up to 20 organizations in this release.");
-    UUID id = UUID.randomUUID();
-    db.update("INSERT INTO organization(id,name) VALUES (?,?)", id, name.strip());
-    db.update(
-        "INSERT INTO membership(user_id,organization_id,role,can_manage,can_organize) VALUES"
-            + " (?,?,'ORGANIZER',true,true)",
-        actor.id(),
-        id);
-    audit(actor, id, "ORGANIZATION_CREATED", id);
-    return new OrganizationData(id, name.strip());
+    var organization = new OrganizationEntity(UUID.randomUUID());
+    organization.setName(name.strip());
+    data.organizations().persist(organization);
+    var membership = new MembershipEntity(new MembershipId(actor.id(), organization.getId()));
+    membership.setRole("ORGANIZER");
+    membership.setCanManage(true);
+    membership.setCanOrganize(true);
+    data.memberships().persist(membership);
+    audit(actor, organization.getId(), "ORGANIZATION_CREATED", organization.getId());
+    return new OrganizationData(organization.getId(), organization.getName());
   }
 
   @Transactional
   public InvitationGrant invite(
       Actor actor, UUID org, boolean manage, boolean organize, UUID event) {
-    organization(org, true);
+    var organization = organization(org, true);
     manager(actor, org);
     if (event != null) {
       require(
@@ -113,148 +121,115 @@ public class Organizations {
           "INVALID_INPUT",
           "Choose an organization permission or one event, not both.");
       require(
-          db.queryForObject(
-                  "SELECT count(*) FROM event WHERE id=? AND organization_id=?",
-                  Integer.class,
-                  event,
-                  org)
-              == 1,
+          data.events().existsByIdAndOrganizationId(event, org),
           "NOT_FOUND",
           "This event is unavailable.");
     }
     require(
-        db.queryForObject(
-                "SELECT count(*) FROM organization_invitation WHERE organization_id=? AND NOT"
-                    + " revoked AND accepted_by IS NULL AND expires_at>now()",
-                Integer.class,
-                org)
+        data.invitations()
+                .countByOrganizationIdAndRevokedFalseAndAcceptedByIsNullAndExpiresAtAfter(
+                    org, Instant.now())
             < 100,
         "LIMIT_EXCEEDED",
         "Revoke an invitation before creating another.");
-    UUID id = UUID.randomUUID();
     String token = Accounts.secret();
-    db.update(
-        "INSERT INTO"
-            + " organization_invitation(id,organization_id,created_by,token_hash,can_manage,can_organize,event_id,expires_at)"
-            + " VALUES (?,?,?,?,?,?,?,now()+interval '7 days')",
-        id,
-        org,
-        actor.id(),
-        SecurityConfig.digest(token),
-        manage,
-        organize,
-        event);
-    audit(actor, org, "INVITATION_CREATED", id);
-    return new InvitationGrant(token, invitationById(id));
+    var invitation = new InvitationEntity(UUID.randomUUID());
+    invitation.setOrganizationId(org);
+    invitation.setCreatedBy(actor.id());
+    invitation.setTokenHash(SecurityConfig.digest(token));
+    invitation.setCanManage(manage);
+    invitation.setCanOrganize(organize);
+    invitation.setEventId(event);
+    invitation.setExpiresAt(Instant.now().plus(7, ChronoUnit.DAYS));
+    data.invitations().persist(invitation);
+    audit(actor, org, "INVITATION_CREATED", invitation.getId());
+    return new InvitationGrant(token, invitationData(invitation, organization));
   }
 
-  private Invitation invitationById(UUID id) {
-    return db.query(
-            "SELECT i.*,o.name,EXISTS(SELECT 1 FROM membership m WHERE"
-                + " m.organization_id=i.organization_id AND m.user_id=i.created_by AND"
-                + " m.can_manage) AS issuer_active FROM organization_invitation i JOIN organization"
-                + " o ON o.id=i.organization_id WHERE i.id=?",
-            (r, i) -> {
-              var expiry = r.getObject("expires_at", OffsetDateTime.class);
-              String status =
-                  r.getObject("accepted_by") != null
-                      ? "ACCEPTED"
-                      : r.getBoolean("revoked")
-                          ? "REVOKED"
-                          : !expiry.isAfter(OffsetDateTime.now())
-                              ? "EXPIRED"
-                              : !r.getBoolean("issuer_active") ? "ISSUER_REMOVED" : "AVAILABLE";
-              return new Invitation(
-                  r.getObject("id", UUID.class),
-                  r.getObject("organization_id", UUID.class),
-                  r.getString("name"),
-                  r.getBoolean("can_manage"),
-                  r.getBoolean("can_organize"),
-                  r.getObject("event_id", UUID.class),
-                  expiry.toInstant().toString(),
-                  status);
-            },
-            id)
-        .getFirst();
+  private Invitation invitationData(InvitationEntity invitation, OrganizationEntity org) {
+    boolean issuer =
+        data.memberships()
+            .existsByIdUserIdAndIdOrganizationIdAndCanManageTrue(
+                invitation.getCreatedBy(), invitation.getOrganizationId());
+    String status =
+        invitation.getAcceptedBy() != null
+            ? "ACCEPTED"
+            : invitation.isRevoked()
+                ? "REVOKED"
+                : !invitation.getExpiresAt().isAfter(Instant.now())
+                    ? "EXPIRED"
+                    : !issuer ? "ISSUER_REMOVED" : "AVAILABLE";
+    return new Invitation(
+        invitation.getId(),
+        org.getId(),
+        org.getName(),
+        invitation.isCanManage(),
+        invitation.isCanOrganize(),
+        invitation.getEventId(),
+        invitation.getExpiresAt().toString(),
+        status);
   }
 
-  private Map<String, Object> tokenRow(String token) {
+  private InvitationEntity tokenRow(String token) {
     require(
         token != null && token.matches("[A-Za-z0-9_-]{43}"),
         "NOT_FOUND",
         "This invitation is unavailable.");
-    var rows =
-        db.queryForList(
-            "SELECT * FROM organization_invitation WHERE token_hash=?",
-            SecurityConfig.digest(token));
-    require(!rows.isEmpty(), "NOT_FOUND", "This invitation is unavailable.");
-    return rows.getFirst();
+    return data.invitations()
+        .findByTokenHash(SecurityConfig.digest(token))
+        .orElseThrow(() -> new DomainException("NOT_FOUND", "This invitation is unavailable."));
   }
 
-  private Invitation usable(Actor actor, Map<String, Object> row) {
-    var invitation = invitationById((UUID) row.get("id"));
+  private Invitation usable(Actor actor, InvitationEntity invitation, OrganizationEntity org) {
+    var result = invitationData(invitation, org);
     boolean own =
-        actor.id().equals(row.get("accepted_by"))
-            && access.member(actor, invitation.organizationId());
+        actor.id().equals(invitation.getAcceptedBy()) && access.member(actor, org.getId());
     require(
-        invitation.status().equals("AVAILABLE") || (invitation.status().equals("ACCEPTED") && own),
+        result.status().equals("AVAILABLE") || (result.status().equals("ACCEPTED") && own),
         "NOT_FOUND",
         "This invitation is unavailable.");
-    return invitation;
+    return result;
   }
 
   public Invitation preview(Actor actor, String token) {
     Access.requireSession(actor);
-    return usable(actor, tokenRow(token));
+    var invitation = tokenRow(token);
+    return usable(actor, invitation, invitation.getOrganization());
   }
 
   @Transactional
   public OrganizationData accept(Actor actor, String token) {
     Access.requireSession(actor);
     var initial = tokenRow(token);
-    UUID org = (UUID) initial.get("organization_id"), id = (UUID) initial.get("id");
-    organization(org, true);
-    var row =
-        db.queryForList("SELECT * FROM organization_invitation WHERE id=? FOR UPDATE", id)
-            .getFirst();
-    var invitation = usable(actor, row);
-    if (row.get("accepted_by") == null) {
-      db.update(
-          "INSERT INTO membership(user_id,organization_id,role,can_manage,can_organize) VALUES"
-              + " (?,?,?,?,?) ON CONFLICT(user_id,organization_id) DO UPDATE SET"
-              + " can_manage=membership.can_manage OR"
-              + " excluded.can_manage,can_organize=membership.can_organize OR"
-              + " excluded.can_organize,role=CASE WHEN membership.can_manage OR"
-              + " membership.can_organize OR excluded.can_manage OR excluded.can_organize THEN"
-              + " 'ORGANIZER' ELSE 'VOLUNTEER' END",
-          actor.id(),
-          org,
-          invitation.canManage() || invitation.canOrganize() ? "ORGANIZER" : "VOLUNTEER",
-          invitation.canManage(),
-          invitation.canOrganize());
-      if (invitation.eventId() != null)
-        db.update(
-            "INSERT INTO event_manager(event_id,user_id) VALUES (?,?) ON CONFLICT DO NOTHING",
-            invitation.eventId(),
-            actor.id());
-      db.update("UPDATE organization_invitation SET accepted_by=? WHERE id=?", actor.id(), id);
-      audit(actor, org, "INVITATION_ACCEPTED", id);
+    var org = organization(initial.getOrganizationId(), true);
+    var invitation =
+        data.invitations().lockById(initial.getId()).orElseThrow(Organizations::unavailable);
+    usable(actor, invitation, org);
+    if (invitation.getAcceptedBy() == null) {
+      var key = new MembershipId(actor.id(), org.getId());
+      var existing = data.memberships().findById(key);
+      var membership = existing.orElseGet(() -> new MembershipEntity(key));
+      membership.setCanManage(membership.isCanManage() || invitation.isCanManage());
+      membership.setCanOrganize(membership.isCanOrganize() || invitation.isCanOrganize());
+      membership.setRole(
+          membership.isCanManage() || membership.isCanOrganize() ? "ORGANIZER" : "VOLUNTEER");
+      if (existing.isEmpty()) data.memberships().persist(membership);
+      if (invitation.getEventId() != null) {
+        var grant = new EventManagerId(invitation.getEventId(), actor.id());
+        if (!data.managers().existsById(grant))
+          data.managers().persist(new EventManagerEntity(grant));
+      }
+      invitation.setAcceptedBy(actor.id());
+      audit(actor, org.getId(), "INVITATION_ACCEPTED", invitation.getId());
     }
-    return new OrganizationData(org, invitation.organizationName());
+    return new OrganizationData(org.getId(), org.getName());
   }
 
   public List<Invitation> invitations(Actor actor, UUID org, int first, int offset) {
-    page(first, offset);
+    var page = page(first, offset, Sort.by(Sort.Order.desc("createdAt"), Sort.Order.asc("id")));
     manager(actor, org);
-    return db
-        .queryForList(
-            "SELECT id FROM organization_invitation WHERE organization_id=? ORDER BY created_at"
-                + " DESC,id LIMIT ? OFFSET ?",
-            org,
-            first,
-            offset)
-        .stream()
-        .map(r -> invitationById((UUID) r.get("id")))
+    return data.invitations().findByOrganizationId(org, page).stream()
+        .map(i -> invitationData(i, i.getOrganization()))
         .toList();
   }
 
@@ -262,13 +237,14 @@ public class Organizations {
   public boolean revoke(Actor actor, UUID org, UUID id) {
     organization(org, true);
     manager(actor, org);
-    int changed =
-        db.update(
-            "UPDATE organization_invitation SET revoked=true WHERE id=? AND organization_id=? AND"
-                + " NOT revoked AND accepted_by IS NULL",
-            id,
-            org);
-    if (changed > 0) audit(actor, org, "INVITATION_REVOKED", id);
+    data.invitations()
+        .findById(id)
+        .filter(
+            i -> i.getOrganizationId().equals(org) && !i.isRevoked() && i.getAcceptedBy() == null)
+        .ifPresent(i -> {
+          i.setRevoked(true);
+          audit(actor, org, "INVITATION_REVOKED", id);
+        });
     return true;
   }
 
@@ -277,52 +253,38 @@ public class Organizations {
       Actor actor, UUID org, UUID user, boolean manage, boolean organize, boolean remove) {
     organization(org, true);
     manager(actor, org);
-    var rows =
-        db.queryForList(
-            "SELECT * FROM membership WHERE user_id=? AND organization_id=?", user, org);
-    require(!rows.isEmpty(), "NOT_FOUND", "This membership is unavailable.");
-    if ((Boolean) rows.getFirst().get("can_manage") && (remove || !manage))
+    var key = new MembershipId(user, org);
+    var member =
+        data.memberships()
+            .findById(key)
+            .orElseThrow(() -> new DomainException("NOT_FOUND", "This membership is unavailable."));
+    if (member.isCanManage() && (remove || !manage)) {
       require(
-          db.queryForObject(
-                  "SELECT count(*) FROM membership WHERE organization_id=? AND can_manage",
-                  Integer.class,
-                  org)
-              > 1,
+          data.memberships().countByIdOrganizationIdAndCanManageTrue(org) > 1,
           "CONFLICT",
           "Keep at least one organization manager.");
-    if ((Boolean) rows.getFirst().get("can_manage") && (remove || !manage)) {
-      db.update(
-          "UPDATE organization_invitation SET revoked=true WHERE organization_id=? AND created_by=?"
-              + " AND accepted_by IS NULL",
-          org,
-          user);
+      data.invitations()
+          .findByOrganizationIdAndCreatedByAndAcceptedByIsNull(org, user)
+          .forEach(i -> i.setRevoked(true));
     }
     if (remove) {
-      db.update(
-          "DELETE FROM event_manager WHERE user_id=? AND event_id IN (SELECT id FROM event WHERE"
-              + " organization_id=?)",
-          user,
-          org);
-      db.update("DELETE FROM membership WHERE user_id=? AND organization_id=?", user, org);
-      db.update(
-          "UPDATE agent_token SET revoked=true WHERE user_id=? AND organization_id=?", user, org);
-    } else
-      db.update(
-          "UPDATE membership SET can_manage=?,can_organize=?,role=? WHERE user_id=? AND"
-              + " organization_id=?",
-          manage,
-          organize,
-          manage || organize ? "ORGANIZER" : "VOLUNTEER",
-          user,
-          org);
+      data.managers().deleteAll(data.managers().findByIdUserIdAndEventOrganizationId(user, org));
+      data.memberships().delete(member);
+      data.tokens().findByUserIdAndOrganizationId(user, org).forEach(t -> t.setRevoked(true));
+    } else {
+      member.setCanManage(manage);
+      member.setCanOrganize(organize);
+      member.setRole(manage || organize ? "ORGANIZER" : "VOLUNTEER");
+    }
     audit(actor, org, remove ? "MEMBER_REMOVED" : "PERMISSIONS_CHANGED", user);
     return true;
   }
 
   private UUID eventOrganization(UUID event) {
-    var rows = db.queryForList("SELECT organization_id FROM event WHERE id=?", event);
-    require(!rows.isEmpty(), "NOT_FOUND", "This event is unavailable.");
-    return (UUID) rows.getFirst().get("organization_id");
+    return data.events()
+        .findById(event)
+        .orElseThrow(() -> new DomainException("NOT_FOUND", "This event is unavailable."))
+        .getOrganizationId();
   }
 
   @Transactional
@@ -334,51 +296,45 @@ public class Organizations {
         access.member(new Actor(user, null, false, true), org),
         "NOT_FOUND",
         "Select an organization member.");
-    if (enabled)
-      db.update(
-          "INSERT INTO event_manager(event_id,user_id) VALUES (?,?) ON CONFLICT DO NOTHING",
-          event,
-          user);
-    else db.update("DELETE FROM event_manager WHERE event_id=? AND user_id=?", event, user);
+    var key = new EventManagerId(event, user);
+    if (enabled) {
+      if (!data.managers().existsById(key)) data.managers().persist(new EventManagerEntity(key));
+    } else data.managers().deleteById(key);
     audit(actor, org, enabled ? "EVENT_MANAGER_GRANTED" : "EVENT_MANAGER_REMOVED", user);
     return true;
   }
 
   public List<Member> eventManagers(Actor actor, UUID event, int first, int offset) {
-    page(first, offset);
-    manager(actor, eventOrganization(event));
-    return db.query(
-        "SELECT u.id,u.display_name,m.role,m.can_manage,m.can_organize FROM event_manager g JOIN"
-            + " app_user u ON u.id=g.user_id JOIN event e ON e.id=g.event_id JOIN membership m ON"
-            + " m.user_id=u.id AND m.organization_id=e.organization_id WHERE g.event_id=? ORDER BY"
-            + " u.display_name,u.id LIMIT ? OFFSET ?",
-        (r, i) ->
-            new Member(
-                r.getObject("id", UUID.class),
-                r.getString("display_name"),
-                r.getString("role"),
-                r.getBoolean("can_manage"),
-                r.getBoolean("can_manage") || r.getBoolean("can_organize")),
-        event,
-        first,
-        offset);
+    var page = page(first, offset, Sort.by("user.displayName", "id.userId"));
+    UUID org = eventOrganization(event);
+    manager(actor, org);
+    return data.managers().findByIdEventId(event, page).stream()
+        .map(g -> {
+          var member =
+              data.memberships()
+                  .findById(new MembershipId(g.getId().getUserId(), org))
+                  .orElseThrow(Organizations::unavailable);
+          return new Member(
+              g.getId().getUserId(),
+              g.getUser().getDisplayName(),
+              member.getRole(),
+              member.isCanManage(),
+              member.isCanManage() || member.isCanOrganize());
+        })
+        .toList();
   }
 
   public List<AuditEntry> audit(Actor actor, UUID org, int first, int offset) {
-    page(first, offset);
+    var page = page(first, offset, Sort.by(Sort.Order.desc("createdAt"), Sort.Order.asc("id")));
     manager(actor, org);
-    return db.query(
-        "SELECT a.*,u.display_name FROM access_audit a JOIN app_user u ON u.id=a.actor_id WHERE"
-            + " a.organization_id=? ORDER BY a.created_at DESC,a.id LIMIT ? OFFSET ?",
-        (r, i) ->
+    return data.audit().findByOrganizationId(org, page).stream()
+        .map(e ->
             new AuditEntry(
-                r.getObject("id", UUID.class),
-                r.getString("display_name"),
-                r.getString("action"),
-                r.getObject("target_id", UUID.class),
-                r.getObject("created_at", OffsetDateTime.class).toInstant().toString()),
-        org,
-        first,
-        offset);
+                e.getId(),
+                e.getActor().getDisplayName(),
+                e.getAction(),
+                e.getTargetId(),
+                e.getCreatedAt().toString()))
+        .toList();
   }
 }

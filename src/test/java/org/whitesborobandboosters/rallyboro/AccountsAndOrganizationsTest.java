@@ -24,6 +24,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.whitesborobandboosters.rallyboro.organization.Organizations;
+import org.whitesborobandboosters.rallyboro.persistence.PersistenceRepositories;
 import org.whitesborobandboosters.rallyboro.security.Access;
 import org.whitesborobandboosters.rallyboro.security.Access.Actor;
 import org.whitesborobandboosters.rallyboro.security.Accounts;
@@ -55,6 +56,7 @@ class AccountsAndOrganizationsTest {
   }
 
   @Autowired JdbcTemplate db;
+  @Autowired PersistenceRepositories data;
   @Autowired Environment environment;
   @Autowired Accounts accounts;
   @Autowired Organizations organizations;
@@ -330,12 +332,12 @@ class AccountsAndOrganizationsTest {
 
   @Test
   void accountLimits_repeatedInvalidRequestsAndDisabledAccounts_rejectBeforeWriting() {
-    var limited = new Accounts(db, new BCryptPasswordEncoder(4), true, 1);
+    var limited = new Accounts(data, new BCryptPasswordEncoder(4), true, 1);
     assertThatThrownBy(() -> limited.register("bad name", "Name", PASSWORD, "same-address"))
         .hasMessageContaining("Username");
     assertThatThrownBy(() -> limited.register("valid_name", "Name", PASSWORD, "same-address"))
         .hasMessageContaining("Too many");
-    var disabled = new Accounts(db, new BCryptPasswordEncoder(4), false, 10);
+    var disabled = new Accounts(data, new BCryptPasswordEncoder(4), false, 10);
     assertThatThrownBy(() -> disabled.register("valid_name", "Name", PASSWORD, "address"))
         .hasMessageContaining("disabled");
     assertThatThrownBy(() ->

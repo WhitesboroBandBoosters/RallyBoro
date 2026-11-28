@@ -4,6 +4,8 @@ title: Foundation architecture decisions
 
 # Foundation architecture decisions
 
+Persistence update (2026-11-28): [decision 005](005-jpa-persistence.md) replaces the original handwritten JDBC layer with Spring Data JPA/Hibernate. Flyway, PostgreSQL, deployment packaging, and historical foundation choices below remain recorded.
+
 Accepted for initiative 1 · November 27, 2026
 
 **Superseded in part:** [Decision 002](002-graphql-and-interactive-ui.md) requires GraphQL for business operations and an interactive typed frontend. Thymeleaf and the JSON status route describe only the existing foundation.

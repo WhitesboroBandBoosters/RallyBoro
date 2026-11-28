@@ -1,18 +1,25 @@
 package org.whitesborobandboosters.rallyboro.staffing;
 
+import static org.whitesborobandboosters.rallyboro.persistence.StaffingSpecifications.*;
 import static org.whitesborobandboosters.rallyboro.staffing.Models.*;
 
-import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
-import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.whitesborobandboosters.rallyboro.persistence.EventEntity;
+import org.whitesborobandboosters.rallyboro.persistence.JobEntity;
+import org.whitesborobandboosters.rallyboro.persistence.MembershipId;
+import org.whitesborobandboosters.rallyboro.persistence.MutationReceiptEntity;
+import org.whitesborobandboosters.rallyboro.persistence.OffsetPage;
+import org.whitesborobandboosters.rallyboro.persistence.PersistenceRepositories;
+import org.whitesborobandboosters.rallyboro.persistence.ReceiptId;
+import org.whitesborobandboosters.rallyboro.persistence.RegistrationEntity;
+import org.whitesborobandboosters.rallyboro.persistence.ShiftEntity;
 import org.whitesborobandboosters.rallyboro.security.Access;
 import org.whitesborobandboosters.rallyboro.security.Access.Actor;
 import org.whitesborobandboosters.rallyboro.security.SecurityConfig;
@@ -20,26 +27,16 @@ import org.whitesborobandboosters.rallyboro.security.SecurityConfig;
 @Service
 @Transactional(readOnly = true)
 public class StaffingService {
-  private final JdbcTemplate db;
+  private final PersistenceRepositories data;
   private final Access access;
 
-  public StaffingService(JdbcTemplate db, Access access) {
-    this.db = db;
+  public StaffingService(PersistenceRepositories data, Access access) {
+    this.data = data;
     this.access = access;
   }
 
-  private static UUID uuid(Map<String, Object> row, String name) {
-    return (UUID) row.get(name);
-  }
-
-  private static Instant instant(Object value) {
-    return value instanceof OffsetDateTime date
-        ? date.toInstant()
-        : ((Timestamp) value).toInstant();
-  }
-
-  private static String str(Map<String, Object> row, String name) {
-    return row.get(name).toString();
+  private static DomainException unavailable() {
+    return new DomainException("NOT_FOUND", "This record is unavailable.");
   }
 
   private static void require(boolean valid, String code, String message) {
@@ -54,206 +51,156 @@ public class StaffingService {
     return value.strip();
   }
 
-  private static int page(int first, int offset) {
+  private static OffsetPage page(int first, int offset, Sort sort) {
     require(
         first >= 1 && first <= 100 && offset >= 0 && offset <= 10000,
         "INVALID_INPUT",
         "Page size must be 1–100 and offset 0–10000.");
-    return first;
+    return new OffsetPage(first, offset, sort);
   }
 
-  private Map<String, Object> one(String sql, Object... args) {
-    var rows = db.queryForList(sql, args);
-    if (rows.isEmpty()) throw new DomainException("NOT_FOUND", "This record is unavailable.");
-    return rows.getFirst();
+  private EventEntity eventRow(UUID id) {
+    return data.events().findById(id).orElseThrow(StaffingService::unavailable);
   }
 
-  private Map<String, Object> eventRow(UUID id) {
-    return one("SELECT * FROM event WHERE id=?", id);
+  private ShiftEntity shiftRow(UUID id) {
+    return data.shifts().findById(id).orElseThrow(StaffingService::unavailable);
   }
 
-  private boolean registered(Actor actor, UUID event) {
-    return db.queryForObject(
-            "SELECT count(*) FROM registration r JOIN participant p ON p.id=r.participant_id JOIN"
-                + " shift s ON s.id=r.shift_id JOIN job j ON j.id=s.job_id WHERE"
-                + " p.managing_user_id=? AND j.event_id=?",
-            Integer.class,
-            actor.id(),
-            event)
-        > 0;
+  private JobEntity jobRow(UUID id) {
+    return data.jobs().findById(id).orElseThrow(StaffingService::unavailable);
   }
 
-  private void visible(Actor actor, Map<String, Object> row) {
-    UUID org = uuid(row, "organization_id");
+  private void visible(Actor actor, EventEntity event) {
+    UUID org = event.getOrganizationId();
     if (actor.organizationId() != null && !actor.organizationId().equals(org)) Access.denied();
-    boolean manager = access.manageEvent(actor, uuid(row, "id"), org);
-    if (!manager && !registered(actor, uuid(row, "id"))) {
-      String visibility = str(row, "visibility");
-      if (visibility.equals("HIDDEN")
-          || (visibility.equals("PRIVATE") && !access.member(actor, org))) Access.denied();
+    if (!access.manageEvent(actor, event.getId(), org)
+        && !data.registrations()
+            .existsByParticipantUserIdAndShiftJobEventId(actor.id(), event.getId())) {
+      if (event.getVisibility().equals("HIDDEN")
+          || (event.getVisibility().equals("PRIVATE") && !access.member(actor, org)))
+        Access.denied();
     }
   }
 
   public Viewer viewer(Actor actor) {
-    String name =
-        db.queryForObject("SELECT display_name FROM app_user WHERE id=?", String.class, actor.id());
+    var user = data.users().findById(actor.id()).orElseThrow(StaffingService::unavailable);
     var memberships =
-        db
-            .query(
-                "SELECT m.*,o.name FROM membership m JOIN organization o ON o.id=m.organization_id"
-                    + " WHERE user_id=?",
-                (r, i) ->
-                    new Membership(
-                        r.getObject("organization_id", UUID.class),
-                        r.getString("name"),
-                        r.getString("role"),
-                        r.getBoolean("can_manage"),
-                        r.getBoolean("can_manage") || r.getBoolean("can_organize")),
-                actor.id())
-            .stream()
+        data.memberships().findByIdUserId(actor.id()).stream()
             .filter(m ->
-                actor.organizationId() == null || m.organizationId().equals(actor.organizationId()))
+                actor.organizationId() == null
+                    || actor.organizationId().equals(m.getId().getOrganizationId()))
+            .map(m ->
+                new Membership(
+                    m.getId().getOrganizationId(),
+                    m.getOrganization().getName(),
+                    m.getRole(),
+                    m.isCanManage(),
+                    m.isCanManage() || m.isCanOrganize()))
             .toList();
-    return new Viewer(actor.id(), name, memberships);
+    return new Viewer(user.getId(), user.getDisplayName(), memberships);
   }
 
   public EventPage events(Actor actor, UUID org, int first, int offset) {
-    page(first, offset);
+    var page = page(first, offset, Sort.by("eventDate", "id"));
     if (!access.member(actor, org)) Access.denied();
-    boolean manager = access.organizer(actor, org);
-    String filter =
-        manager
-            ? ""
-            : " AND (visibility<>'HIDDEN' OR EXISTS (SELECT 1 FROM event_manager g WHERE"
-                  + " g.event_id=event.id AND g.user_id=?))";
-    var items =
-        db
-            .queryForList(
-                "SELECT * FROM event WHERE organization_id=?"
-                    + filter
-                    + " ORDER BY event_date,id LIMIT ? OFFSET ?",
-                manager
-                    ? new Object[] {org, first, offset}
-                    : new Object[] {org, actor.id(), first, offset})
-            .stream()
-            .map(row -> eventData(actor, row))
-            .toList();
-    int total =
-        db.queryForObject(
-            "SELECT count(*) FROM event WHERE organization_id=?" + filter,
-            Integer.class,
-            manager ? new Object[] {org} : new Object[] {org, actor.id()});
-    return new EventPage(items, total);
+    var filter = visibleEvents(org, actor.id(), access.organizer(actor, org));
+    var result = data.events().findAll(filter, page);
+    return new EventPage(
+        result.stream().map(e -> eventData(actor, e)).toList(),
+        Math.toIntExact(result.getTotalElements()));
   }
 
   public EventData event(Actor actor, UUID id) {
-    var row = eventRow(id);
-    visible(actor, row);
-    return eventData(actor, row);
+    var event = eventRow(id);
+    visible(actor, event);
+    return eventData(actor, event);
   }
 
   public List<SignupGuidance> signupGuidance(Actor actor, UUID eventId) {
     visible(actor, eventRow(eventId));
-    // Only the caller's confirmed commitments affect guidance. Do not expose other participants.
-    return db.query(
-        """
-        SELECT s.id,
-          (SELECT r.id FROM registration r JOIN participant p ON p.id=r.participant_id
-           WHERE p.managing_user_id=? AND r.shift_id=s.id AND r.status='CONFIRMED') AS registration_id,
-          EXISTS (SELECT 1 FROM registration r JOIN participant p ON p.id=r.participant_id
-                  JOIN shift booked ON booked.id=r.shift_id
-                  WHERE p.managing_user_id=? AND r.status='CONFIRMED' AND booked.id<>s.id
-                  AND booked.starts_at<s.ends_at AND booked.ends_at>s.starts_at) AS conflict
-        FROM shift s JOIN job j ON j.id=s.job_id WHERE j.event_id=?
-        ORDER BY s.starts_at,s.id
-        """,
-        (r, i) ->
-            new SignupGuidance(
-                r.getObject("id", UUID.class),
-                r.getObject("registration_id", UUID.class),
-                r.getBoolean("conflict")),
-        actor.id(),
-        actor.id(),
-        eventId);
-  }
-
-  private EventData eventData(Actor actor, Map<String, Object> row) {
-    return new EventData(
-        uuid(row, "id"),
-        uuid(row, "organization_id"),
-        str(row, "title"),
-        str(row, "description"),
-        str(row, "location"),
-        str(row, "event_date"),
-        str(row, "timezone"),
-        str(row, "visibility"),
-        (Boolean) row.get("signup_open"),
-        (Integer) row.get("revision"),
-        access.manageEvent(actor, uuid(row, "id"), uuid(row, "organization_id")),
-        jobs(uuid(row, "id")));
-  }
-
-  private List<JobData> jobs(UUID event) {
-    return db.queryForList("SELECT * FROM job WHERE event_id=? ORDER BY id", event).stream()
-        .map(this::jobData)
+    var shifts = data.shifts().findByJobEventIdOrderByStartsAtAscIdAsc(eventId);
+    if (shifts.isEmpty()) return List.of();
+    Instant first = shifts.getFirst().getStartsAt(),
+        last = shifts.stream().map(ShiftEntity::getEndsAt).max(Instant::compareTo).orElseThrow();
+    var own =
+        data.registrations()
+            .findByParticipantUserIdAndStatusAndShiftStartsAtLessThanAndShiftEndsAtGreaterThan(
+                actor.id(), "CONFIRMED", last, first);
+    return shifts.stream()
+        .map(shift -> {
+          UUID registered =
+              own.stream()
+                  .filter(r -> r.getShiftId().equals(shift.getId()))
+                  .map(RegistrationEntity::getId)
+                  .findFirst()
+                  .orElse(null);
+          boolean conflict =
+              own.stream()
+                  .anyMatch(r ->
+                      !r.getShiftId().equals(shift.getId())
+                          && r.getShift().getStartsAt().isBefore(shift.getEndsAt())
+                          && r.getShift().getEndsAt().isAfter(shift.getStartsAt()));
+          return new SignupGuidance(shift.getId(), registered, conflict);
+        })
         .toList();
   }
 
-  private JobData jobData(Map<String, Object> row) {
+  private EventData eventData(Actor actor, EventEntity event) {
+    return new EventData(
+        event.getId(),
+        event.getOrganizationId(),
+        event.getTitle(),
+        event.getDescription(),
+        event.getLocation(),
+        event.getEventDate().toString(),
+        event.getTimezone(),
+        event.getVisibility(),
+        event.isSignupOpen(),
+        event.getRevision(),
+        access.manageEvent(actor, event.getId(), event.getOrganizationId()),
+        data.jobs().findByEventIdOrderById(event.getId()).stream().map(this::jobData).toList());
+  }
+
+  private JobData jobData(JobEntity job) {
     return new JobData(
-        uuid(row, "id"),
-        uuid(row, "event_id"),
-        str(row, "name"),
-        str(row, "description"),
-        str(row, "eligibility"),
-        db
-            .queryForList(
-                "SELECT * FROM shift WHERE job_id=? ORDER BY starts_at,id", uuid(row, "id"))
-            .stream()
+        job.getId(),
+        job.getEventId(),
+        job.getName(),
+        job.getDescription(),
+        job.getEligibility(),
+        data.shifts().findByJobIdOrderByStartsAtAscIdAsc(job.getId()).stream()
             .map(this::shiftData)
             .toList());
   }
 
-  private ShiftData shiftData(Map<String, Object> row) {
+  private ShiftData shiftData(ShiftEntity shift) {
     int filled =
-        db.queryForObject(
-            "SELECT count(*) FROM registration WHERE shift_id=? AND status='CONFIRMED'",
-            Integer.class,
-            uuid(row, "id"));
-    int cap = (Integer) row.get("capacity");
+        Math.toIntExact(data.registrations().countByShiftIdAndStatus(shift.getId(), "CONFIRMED"));
     return new ShiftData(
-        uuid(row, "id"),
-        uuid(row, "job_id"),
-        instant(row.get("starts_at")).toString(),
-        instant(row.get("ends_at")).toString(),
-        cap,
+        shift.getId(),
+        shift.getJobId(),
+        shift.getStartsAt().toString(),
+        shift.getEndsAt().toString(),
+        shift.getCapacity(),
         filled,
-        cap - filled);
+        shift.getCapacity() - filled);
   }
 
-  private UUID eventForShift(UUID shift) {
-    return db.queryForObject(
-        "SELECT event_id FROM job j JOIN shift s ON s.job_id=j.id WHERE s.id=?", UUID.class, shift);
+  private EventEntity lockEvent(UUID id) {
+    return data.events().lockById(id).orElseThrow(StaffingService::unavailable);
   }
 
-  private void lockEvent(UUID id) {
-    one("SELECT id FROM event WHERE id=? FOR UPDATE", id);
-  }
-
-  private void editable(Actor actor, UUID id) {
-    lockEvent(id);
-    access.requireEvent(actor, id, uuid(eventRow(id), "organization_id"));
+  private EventEntity editable(Actor actor, UUID id) {
+    var event = lockEvent(id);
+    access.requireEvent(actor, id, event.getOrganizationId());
     access.write(actor);
+    return event;
   }
 
   private void noAssignments(UUID event) {
     require(
-        db.queryForObject(
-                "SELECT count(*) FROM registration r JOIN shift s ON s.id=r.shift_id JOIN job j ON"
-                    + " j.id=s.job_id WHERE j.event_id=? AND r.status='CONFIRMED'",
-                Integer.class,
-                event)
-            == 0,
+        !data.registrations().existsByShiftJobEventIdAndStatus(event, "CONFIRMED"),
         "CONFLICT",
         "Remove confirmed assignments before changing event timing or staffing structure.");
   }
@@ -276,60 +223,40 @@ public class StaffingService {
         !input.signupOpen() || !input.visibility().equals("HIDDEN"),
         "INVALID_INPUT",
         "Make the event visible before opening signup.");
-    UUID id = input.id();
-    if (id == null) {
+    EventEntity event;
+    if (input.id() == null) {
       require(!input.signupOpen(), "INVALID_INPUT", "New events start with signup closed.");
-      id = UUID.randomUUID();
-      db.update(
-          "INSERT INTO"
-              + " event(id,organization_id,title,description,location,event_date,timezone,visibility)"
-              + " VALUES (?,?,?,?,?,?,?,?)",
-          id,
-          input.organizationId(),
-          title,
-          description,
-          location,
-          date,
-          input.timezone(),
-          input.visibility());
+      event = new EventEntity(UUID.randomUUID());
+      event.setOrganizationId(input.organizationId());
     } else {
-      editable(actor, id);
-      var row = eventRow(id);
+      event = editable(actor, input.id());
       require(
-          uuid(row, "organization_id").equals(input.organizationId()),
+          event.getOrganizationId().equals(input.organizationId()),
           "INVALID_INPUT",
           "An event cannot change organizations.");
       require(
-          input.revision() != null && input.revision().equals(row.get("revision")),
+          input.revision() != null && input.revision() == event.getRevision(),
           "CONFLICT",
           "This event changed. Reload before saving.");
-      if (!str(row, "event_date").equals(input.eventDate())
-          || !str(row, "timezone").equals(input.timezone())) {
-        noAssignments(id);
+      if (!event.getEventDate().equals(date) || !event.getTimezone().equals(input.timezone())) {
+        noAssignments(event.getId());
         require(
-            db.queryForObject(
-                    "SELECT count(*) FROM shift s JOIN job j ON j.id=s.job_id WHERE j.event_id=?",
-                    Integer.class,
-                    id)
-                == 0,
+            data.shifts().countByJobEventId(event.getId()) == 0,
             "CONFLICT",
             "Event date and timezone are fixed after shifts are added. Create a new event to"
                 + " reschedule.");
       }
-      db.update(
-          "UPDATE event SET"
-              + " title=?,description=?,location=?,event_date=?,timezone=?,visibility=?,signup_open=?,revision=revision+1"
-              + " WHERE id=?",
-          title,
-          description,
-          location,
-          date,
-          input.timezone(),
-          input.visibility(),
-          input.signupOpen(),
-          id);
+      event.setRevision(event.getRevision() + 1);
     }
-    return event(actor, id);
+    event.setTitle(title);
+    event.setDescription(description);
+    event.setLocation(location);
+    event.setEventDate(date);
+    event.setTimezone(input.timezone());
+    event.setVisibility(input.visibility());
+    event.setSignupOpen(input.signupOpen());
+    if (input.id() == null) data.events().persist(event);
+    return eventData(actor, event);
   }
 
   @Transactional
@@ -339,270 +266,208 @@ public class StaffingService {
     String name = text(input.name(), 120, true),
         description = text(input.description(), 1000, false),
         eligibility = text(input.eligibility(), 1000, false);
-    UUID id = input.id();
-    if (id == null) {
+    JobEntity job;
+    if (input.id() == null) {
       require(
-          db.queryForObject(
-                  "SELECT count(*) FROM job WHERE event_id=?", Integer.class, input.eventId())
-              < 20,
+          data.jobs().countByEventId(input.eventId()) < 20,
           "LIMIT_EXCEEDED",
           "Pilot events support at most 20 jobs.");
-      id = UUID.randomUUID();
-      db.update(
-          "INSERT INTO job(id,event_id,name,description,eligibility) VALUES (?,?,?,?,?)",
-          id,
-          input.eventId(),
-          name,
-          description,
-          eligibility);
+      job = new JobEntity(UUID.randomUUID());
+      job.setEventId(input.eventId());
     } else {
-      require(
-          uuid(one("SELECT * FROM job WHERE id=?", id), "event_id").equals(input.eventId()),
-          "NOT_FOUND",
-          "Job unavailable.");
-      db.update(
-          "UPDATE job SET name=?,description=?,eligibility=? WHERE id=?",
-          name,
-          description,
-          eligibility,
-          id);
+      job = jobRow(input.id());
+      require(job.getEventId().equals(input.eventId()), "NOT_FOUND", "Job unavailable.");
     }
-    return jobData(one("SELECT * FROM job WHERE id=?", id));
+    job.setName(name);
+    job.setDescription(description);
+    job.setEligibility(eligibility);
+    if (input.id() == null) data.jobs().persist(job);
+    return jobData(job);
   }
 
   @Transactional
   public ShiftData saveShift(Actor actor, ShiftInput input) {
-    UUID event = uuid(one("SELECT * FROM job WHERE id=?", input.jobId()), "event_id");
-    editable(actor, event);
-    noAssignments(event);
+    UUID eventId = jobRow(input.jobId()).getEventId();
+    var event = editable(actor, eventId);
+    noAssignments(eventId);
     Instant start = Instant.parse(input.startsAt()), end = Instant.parse(input.endsAt());
     require(
         end.isAfter(start) && !end.isAfter(start.plusSeconds(86400)),
         "INVALID_INPUT",
         "A shift must last more than zero and at most 24 hours.");
     require(
-        start
-            .atZone(ZoneId.of(str(eventRow(event), "timezone")))
-            .toLocalDate()
-            .equals(LocalDate.parse(str(eventRow(event), "event_date"))),
+        start.atZone(ZoneId.of(event.getTimezone())).toLocalDate().equals(event.getEventDate()),
         "INVALID_INPUT",
         "Shift start must be on the event date in its timezone.");
     require(
         input.capacity() >= 1 && input.capacity() <= 1000,
         "INVALID_INPUT",
         "Capacity must be 1–1000.");
-    UUID id = input.id();
-    if (id == null) {
+    ShiftEntity shift;
+    if (input.id() == null) {
       require(
-          db.queryForObject(
-                  "SELECT count(*) FROM shift WHERE job_id=?", Integer.class, input.jobId())
-              < 100,
+          data.shifts().countByJobId(input.jobId()) < 100,
           "LIMIT_EXCEEDED",
           "Pilot jobs support at most 100 shifts.");
-      id = UUID.randomUUID();
-      db.update(
-          "INSERT INTO shift(id,job_id,starts_at,ends_at,capacity) VALUES (?,?,?,?,?)",
-          id,
-          input.jobId(),
-          OffsetDateTime.parse(start.toString()),
-          OffsetDateTime.parse(end.toString()),
-          input.capacity());
+      shift = new ShiftEntity(UUID.randomUUID());
+      shift.setJobId(input.jobId());
     } else {
-      require(
-          uuid(one("SELECT * FROM shift WHERE id=?", id), "job_id").equals(input.jobId()),
-          "NOT_FOUND",
-          "Shift unavailable.");
-      db.update(
-          "UPDATE shift SET starts_at=?,ends_at=?,capacity=? WHERE id=?",
-          OffsetDateTime.parse(start.toString()),
-          OffsetDateTime.parse(end.toString()),
-          input.capacity(),
-          id);
+      shift = shiftRow(input.id());
+      require(shift.getJobId().equals(input.jobId()), "NOT_FOUND", "Shift unavailable.");
     }
-    return shiftData(one("SELECT * FROM shift WHERE id=?", id));
+    shift.setStartsAt(start);
+    shift.setEndsAt(end);
+    shift.setCapacity(input.capacity());
+    if (input.id() == null) data.shifts().persist(shift);
+    return shiftData(shift);
+  }
+
+  private RegistrationData registration(Actor actor, RegistrationEntity registration) {
+    var shift = registration.getShift();
+    var event = shift.getJob().getEvent();
+    var participant = registration.getParticipant();
+    if (!participant.getUserId().equals(actor.id()))
+      access.requireEvent(actor, event.getId(), event.getOrganizationId());
+    if (actor.organizationId() != null && !actor.organizationId().equals(event.getOrganizationId()))
+      Access.denied();
+    return new RegistrationData(
+        registration.getId(),
+        registration.getStatus(),
+        participant.getUser().getDisplayName(),
+        eventData(actor, event),
+        shiftData(shift));
   }
 
   private RegistrationData registration(Actor actor, UUID id) {
-    var row =
-        one(
-            "SELECT r.*,u.display_name,p.managing_user_id FROM registration r JOIN participant p ON"
-                + " p.id=r.participant_id JOIN app_user u ON u.id=p.managing_user_id WHERE r.id=?",
-            id);
-    UUID shiftId = uuid(row, "shift_id"), eventId = eventForShift(shiftId);
-    var event = eventRow(eventId);
-    if (!uuid(row, "managing_user_id").equals(actor.id()))
-      access.requireEvent(actor, eventId, uuid(event, "organization_id"));
-    if (actor.organizationId() != null
-        && !actor.organizationId().equals(uuid(event, "organization_id"))) Access.denied();
-    return new RegistrationData(
-        id,
-        str(row, "status"),
-        str(row, "display_name"),
-        eventData(actor, event),
-        shiftData(one("SELECT * FROM shift WHERE id=?", shiftId)));
+    return registration(
+        actor, data.registrations().findById(id).orElseThrow(StaffingService::unavailable));
   }
 
   public List<RegistrationData> myRegistrations(Actor actor, int first, int offset) {
-    page(first, offset);
-    return db
-        .queryForList(
-            "SELECT r.id,e.organization_id FROM registration r JOIN participant p ON"
-                + " p.id=r.participant_id JOIN shift s ON s.id=r.shift_id JOIN job j ON"
-                + " j.id=s.job_id JOIN event e ON e.id=j.event_id WHERE p.managing_user_id=? ORDER"
-                + " BY r.created_at DESC,r.id LIMIT ? OFFSET ?",
-            actor.id(),
-            first,
-            offset)
+    return data
+        .registrations()
+        .findAll(
+            ownRegistrations(actor.id(), actor.organizationId()),
+            page(first, offset, Sort.by(Sort.Order.desc("createdAt"), Sort.Order.asc("id"))))
         .stream()
-        .filter(r ->
-            actor.organizationId() == null
-                || actor.organizationId().equals(uuid(r, "organization_id")))
-        .map(r -> registration(actor, uuid(r, "id")))
+        .map(r -> registration(actor, r))
         .toList();
   }
 
-  public List<RegistrationData> coverage(Actor actor, UUID event, int first, int offset) {
-    page(first, offset);
-    access.requireEvent(actor, event, uuid(eventRow(event), "organization_id"));
-    return db
-        .queryForList(
-            "SELECT r.id FROM registration r JOIN shift s ON s.id=r.shift_id JOIN job j ON"
-                + " j.id=s.job_id WHERE j.event_id=? AND r.status='CONFIRMED' ORDER BY"
-                + " r.created_at,r.id LIMIT ? OFFSET ?",
-            event,
-            first,
-            offset)
-        .stream()
-        .map(r -> registration(actor, uuid(r, "id")))
+  public List<RegistrationData> coverage(Actor actor, UUID eventId, int first, int offset) {
+    var page = page(first, offset, Sort.by("createdAt", "id"));
+    access.requireEvent(actor, eventId, eventRow(eventId).getOrganizationId());
+    return data.registrations().findByShiftJobEventIdAndStatus(eventId, "CONFIRMED", page).stream()
+        .map(r -> registration(actor, r))
         .toList();
   }
 
   public List<Member> members(Actor actor, UUID org, int first, int offset) {
-    page(first, offset);
+    var page = page(first, offset, Sort.by("user.displayName", "id.userId"));
     if (!access.memberList(actor, org)) Access.denied();
-    return db.query(
-        "SELECT u.*,m.role,m.can_manage,m.can_organize FROM membership m JOIN app_user u ON"
-            + " u.id=m.user_id WHERE m.organization_id=? ORDER BY u.display_name,u.id LIMIT ?"
-            + " OFFSET ?",
-        (r, i) ->
+    return data.memberships().findByIdOrganizationId(org, page).stream()
+        .map(m ->
             new Member(
-                r.getObject("id", UUID.class),
-                r.getString("display_name"),
-                r.getString("role"),
-                r.getBoolean("can_manage"),
-                r.getBoolean("can_manage") || r.getBoolean("can_organize")),
-        org,
-        first,
-        offset);
+                m.getId().getUserId(),
+                m.getUser().getDisplayName(),
+                m.getRole(),
+                m.isCanManage(),
+                m.isCanManage() || m.isCanOrganize()))
+        .toList();
   }
 
   @Transactional
   public RegistrationData signup(
-      Actor actor, UUID shift, UUID targetUser, UUID request, boolean assignment) {
+      Actor actor, UUID shiftId, UUID targetUser, UUID request, boolean assignment) {
     access.write(actor);
-    UUID event = eventForShift(shift);
-    require(event != null, "NOT_FOUND", "Shift unavailable.");
-    lockEvent(event);
-    var eventRow = eventRow(event);
-    UUID org = uuid(eventRow, "organization_id");
-    if (assignment) access.requireEvent(actor, event, org);
+    var shift = shiftRow(shiftId);
+    UUID eventId = shift.getJob().getEventId();
+    var event = lockEvent(eventId);
+    UUID org = event.getOrganizationId();
+    if (assignment) access.requireEvent(actor, eventId, org);
     else if (!access.member(actor, org)) Access.denied();
     require(
-        db.queryForObject(
-                "SELECT count(*) FROM membership WHERE user_id=? AND organization_id=?",
-                Integer.class,
-                targetUser,
-                org)
-            == 1,
+        data.memberships().existsById(new MembershipId(targetUser, org)),
         "FORBIDDEN",
         "Participant is not a member of this organization.");
     var participant =
-        one("SELECT id FROM participant WHERE managing_user_id=? FOR UPDATE", targetUser);
-    UUID participantId = uuid(participant, "id");
+        data.participants().findByUserId(targetUser).orElseThrow(StaffingService::unavailable);
+    participant =
+        data.participants().lockById(participant.getId()).orElseThrow(StaffingService::unavailable);
     String fingerprint =
-        SecurityConfig.digest((assignment ? "assign" : "signup") + shift + targetUser);
-    var receipts =
-        db.queryForList(
-            "SELECT * FROM mutation_receipt WHERE user_id=? AND request_id=?", actor.id(), request);
-    if (!receipts.isEmpty()) {
-      var receipt = receipts.getFirst();
+        SecurityConfig.digest((assignment ? "assign" : "signup") + shiftId + targetUser);
+    var receiptId = new ReceiptId(actor.id(), request);
+    var receipt = data.receipts().findById(receiptId);
+    if (receipt.isPresent()) {
       require(
-          str(receipt, "fingerprint").equals(fingerprint),
+          receipt.get().getFingerprint().equals(fingerprint),
           "CONFLICT",
           "This request ID was already used for another action.");
-      return registration(actor, uuid(receipt, "result_id"));
+      return registration(actor, receipt.get().getResultId());
     }
     require(
-        (Boolean) eventRow.get("signup_open") && !str(eventRow, "visibility").equals("HIDDEN"),
+        event.isSignupOpen() && !event.getVisibility().equals("HIDDEN"),
         "CLOSED",
         "Signup is closed for this event.");
-    var slot = one("SELECT * FROM shift WHERE id=? FOR UPDATE", shift);
-    require(instant(slot.get("ends_at")).isAfter(Instant.now()), "CLOSED", "This shift has ended.");
+    shift = data.shifts().lockById(shiftId).orElseThrow(StaffingService::unavailable);
+    require(shift.getEndsAt().isAfter(Instant.now()), "CLOSED", "This shift has ended.");
     var previous =
-        db.queryForList(
-            "SELECT * FROM registration WHERE participant_id=? AND shift_id=? AND"
-                + " status='CONFIRMED'",
-            participantId,
-            shift);
-    UUID id = previous.isEmpty() ? UUID.randomUUID() : uuid(previous.getFirst(), "id");
-    if (previous.isEmpty() || !str(previous.getFirst(), "status").equals("CONFIRMED")) {
-      int filled =
-          db.queryForObject(
-              "SELECT count(*) FROM registration WHERE shift_id=? AND status='CONFIRMED'",
-              Integer.class,
-              shift);
+        data.registrations()
+            .findByParticipantIdAndShiftIdAndStatus(participant.getId(), shiftId, "CONFIRMED");
+    RegistrationEntity registration;
+    if (previous.isPresent()) registration = previous.get();
+    else {
       require(
-          filled < (Integer) slot.get("capacity"),
+          data.registrations().countByShiftIdAndStatus(shiftId, "CONFIRMED") < shift.getCapacity(),
           "FULL",
           "This shift is full. Please choose another shift.");
-      int overlap =
-          db.queryForObject(
-              "SELECT count(*) FROM registration r JOIN shift s ON s.id=r.shift_id WHERE"
-                  + " r.participant_id=? AND r.status='CONFIRMED' AND s.starts_at<? AND"
-                  + " s.ends_at>?",
-              Integer.class,
-              participantId,
-              slot.get("ends_at"),
-              slot.get("starts_at"));
       require(
-          overlap == 0,
+          !data.registrations()
+              .existsByParticipantIdAndStatusAndShiftStartsAtLessThanAndShiftEndsAtGreaterThan(
+                  participant.getId(), "CONFIRMED", shift.getEndsAt(), shift.getStartsAt()),
           "OVERLAP",
           assignment
               ? "This participant already has a shift at that time."
               : "You already have a shift at this time. View My registrations to review your"
                   + " bookings.");
-      db.update(
-          "INSERT INTO registration(id,participant_id,shift_id,status) VALUES (?,?,?,'CONFIRMED')",
-          id,
-          participantId,
-          shift);
+      registration = new RegistrationEntity(UUID.randomUUID());
+      registration.setParticipantId(participant.getId());
+      registration.setShiftId(shiftId);
+      registration.setStatus("CONFIRMED");
+      data.registrations().persist(registration);
     }
-    db.update(
-        "INSERT INTO mutation_receipt(user_id,request_id,fingerprint,result_id) VALUES (?,?,?,?)",
-        actor.id(),
-        request,
-        fingerprint,
-        id);
-    return registration(actor, id);
+    var savedReceipt = new MutationReceiptEntity(receiptId);
+    savedReceipt.setFingerprint(fingerprint);
+    savedReceipt.setResultId(registration.getId());
+    data.receipts().persist(savedReceipt);
+    // New entities use scalar FK setters; retrieve navigations only after the insert is visible.
+    data.registrations().flush();
+    return new RegistrationData(
+        registration.getId(),
+        registration.getStatus(),
+        data.users()
+            .findById(targetUser)
+            .orElseThrow(StaffingService::unavailable)
+            .getDisplayName(),
+        eventData(actor, event),
+        shiftData(shift));
   }
 
   @Transactional
   public RegistrationData cancel(Actor actor, UUID id, boolean manager) {
     access.write(actor);
-    var row =
-        one(
-            "SELECT r.*,p.managing_user_id FROM registration r JOIN participant p ON"
-                + " p.id=r.participant_id WHERE r.id=?",
-            id);
-    UUID event = eventForShift(uuid(row, "shift_id"));
-    lockEvent(event);
-    if (manager) access.requireEvent(actor, event, uuid(eventRow(event), "organization_id"));
-    else if (!uuid(row, "managing_user_id").equals(actor.id())) Access.denied();
-    if (actor.organizationId() != null
-        && !actor.organizationId().equals(uuid(eventRow(event), "organization_id")))
+    var registration = data.registrations().findById(id).orElseThrow(StaffingService::unavailable);
+    var participant = registration.getParticipant();
+    var event = registration.getShift().getJob().getEvent();
+    lockEvent(event.getId());
+    if (manager) access.requireEvent(actor, event.getId(), event.getOrganizationId());
+    else if (!participant.getUserId().equals(actor.id())) Access.denied();
+    if (actor.organizationId() != null && !actor.organizationId().equals(event.getOrganizationId()))
       Access.denied();
-    one("SELECT id FROM participant WHERE id=? FOR UPDATE", uuid(row, "participant_id"));
-    db.update("UPDATE registration SET status='CANCELLED',updated_at=now() WHERE id=?", id);
-    return registration(actor, id);
+    data.participants().lockById(participant.getId()).orElseThrow(StaffingService::unavailable);
+    registration = data.registrations().lockById(id).orElseThrow(StaffingService::unavailable);
+    registration.setStatus("CANCELLED");
+    registration.setUpdatedAt(Instant.now());
+    return registration(actor, registration);
   }
 }

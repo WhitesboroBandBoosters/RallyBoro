@@ -12,29 +12,38 @@ import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.whitesborobandboosters.rallyboro.persistence.CredentialEntity;
+import org.whitesborobandboosters.rallyboro.persistence.ExternalIdentityEntity;
+import org.whitesborobandboosters.rallyboro.persistence.ExternalIdentityId;
+import org.whitesborobandboosters.rallyboro.persistence.MembershipEntity;
+import org.whitesborobandboosters.rallyboro.persistence.MembershipId;
+import org.whitesborobandboosters.rallyboro.persistence.OrganizationEntity;
+import org.whitesborobandboosters.rallyboro.persistence.ParticipantEntity;
+import org.whitesborobandboosters.rallyboro.persistence.PersistenceRepositories;
+import org.whitesborobandboosters.rallyboro.persistence.PilotImportEntity;
+import org.whitesborobandboosters.rallyboro.persistence.UserEntity;
 
 @Component
 public class PilotAccounts implements ApplicationRunner, UserDetailsService {
-  private final JdbcTemplate jdbc;
+  private final PersistenceRepositories data;
   private final Properties accounts = new Properties();
   private final UUID org;
   private final String orgName;
   private final boolean localEnabled;
 
   public PilotAccounts(
-      JdbcTemplate jdbc,
+      PersistenceRepositories data,
       @Value("${rallyboro.accounts-file:}") String file,
       @Value("${rallyboro.local-accounts:true}") boolean localEnabled,
       @Value("${rallyboro.organization-id:00000000-0000-0000-0000-000000000001}") UUID org,
       @Value("${rallyboro.organization-name:RallyBoro Pilot}") String orgName)
       throws IOException {
-    this.jdbc = jdbc;
+    this.data = data;
     this.org = org;
     this.orgName = orgName;
     this.localEnabled = localEnabled;
@@ -55,73 +64,73 @@ public class PilotAccounts implements ApplicationRunner, UserDetailsService {
   @Transactional
   public void run(ApplicationArguments args) {
     if (users().isEmpty()) return;
-    jdbc.update(
-        "INSERT INTO organization(id,name) VALUES (?,?) ON CONFLICT(id) DO NOTHING", org, orgName);
+    if (!data.organizations().existsById(org)) {
+      var organization = new OrganizationEntity(org);
+      organization.setName(orgName);
+      data.organizations().persist(organization);
+    }
     for (String username : users()) {
       if (!username.matches("[a-zA-Z0-9_-]{1,40}"))
         throw new IllegalStateException("Invalid pilot account identifier");
       String identity = accounts.getProperty(username + ".oidc-identity", "local:" + username);
       UUID id = Access.identity(identity);
-      if (jdbc.queryForObject(
-              "SELECT count(*) FROM pilot_import WHERE user_id=?", Integer.class, id)
-          > 0) continue;
+      if (data.imports().existsById(id)) continue;
       String name = accounts.getProperty(username + ".name");
       String role = accounts.getProperty(username + ".role", "VOLUNTEER");
       if (name.isBlank() || name.length() > 80 || !Set.of("ORGANIZER", "VOLUNTEER").contains(role))
         throw new IllegalStateException("Invalid pilot account configuration");
-      jdbc.update(
-          "INSERT INTO app_user(id,display_name) VALUES (?,?) ON CONFLICT(id) DO NOTHING",
-          id,
-          name);
-      jdbc.update(
-          "INSERT INTO membership(user_id,organization_id,role,can_manage,can_organize) VALUES"
-              + " (?,?,?,?,?) ON CONFLICT(user_id,organization_id) DO NOTHING",
-          id,
-          org,
-          role,
-          role.equals("ORGANIZER"),
-          role.equals("ORGANIZER"));
+      if (!data.users().existsById(id)) {
+        var user = new UserEntity(id);
+        user.setDisplayName(name);
+        data.users().persist(user);
+      }
+      var membershipId = new MembershipId(id, org);
+      if (!data.memberships().existsById(membershipId)) {
+        var membership = new MembershipEntity(membershipId);
+        membership.setRole(role);
+        membership.setCanManage(role.equals("ORGANIZER"));
+        membership.setCanOrganize(role.equals("ORGANIZER"));
+        data.memberships().persist(membership);
+      }
       if (accounts.containsKey(username + ".oidc-identity")) {
         int split = identity.lastIndexOf('|');
         if (split < 1) throw new IllegalStateException("Invalid pilot OIDC identity");
-        jdbc.update(
-            "INSERT INTO external_identity(issuer,subject,user_id) VALUES (?,?,?) ON CONFLICT DO"
-                + " NOTHING",
-            identity.substring(0, split),
-            identity.substring(split + 1),
-            id);
-      } else if (accounts.getProperty(username + ".password-hash") != null) {
-        jdbc.update(
-            "INSERT INTO local_credential(user_id,username,password_hash) VALUES (?,?,?) ON"
-                + " CONFLICT(user_id) DO NOTHING",
-            id,
-            username.toLowerCase(Locale.ROOT),
-            accounts.getProperty(username + ".password-hash"));
+        var key =
+            new ExternalIdentityId(identity.substring(0, split), identity.substring(split + 1));
+        if (!data.identities().existsById(key)) {
+          var linked = new ExternalIdentityEntity(key);
+          linked.setUserId(id);
+          data.identities().persist(linked);
+        }
+      } else if (accounts.getProperty(username + ".password-hash") != null
+          && !data.credentials().existsById(id)) {
+        var credential = new CredentialEntity(id);
+        credential.setUsername(username.toLowerCase(Locale.ROOT));
+        credential.setPasswordHash(accounts.getProperty(username + ".password-hash"));
+        data.credentials().persist(credential);
       }
-      jdbc.update(
-          "INSERT INTO participant(id,managing_user_id) VALUES (?,?) ON CONFLICT(managing_user_id)"
-              + " DO NOTHING",
-          id,
-          id);
-      jdbc.update("INSERT INTO pilot_import(user_id) VALUES (?)", id);
+      if (data.participants().findByUserId(id).isEmpty()) {
+        var participant = new ParticipantEntity(id);
+        participant.setUserId(id);
+        data.participants().persist(participant);
+      }
+      data.imports().persist(new PilotImportEntity(id));
     }
   }
 
   @Override
+  @Transactional(readOnly = true)
   public UserDetails loadUserByUsername(String username) {
     if (!localEnabled || username == null || username.length() > 40)
       throw new UsernameNotFoundException("Invalid credentials");
-    var rows =
-        jdbc.queryForList(
-            "SELECT c.*,u.auth_version FROM local_credential c JOIN app_user u ON u.id=c.user_id"
-                + " WHERE c.username=?",
-            username.toLowerCase(Locale.ROOT));
-    if (rows.size() != 1) throw new UsernameNotFoundException("Invalid credentials");
-    var row = rows.getFirst();
+    var credential =
+        data.credentials()
+            .findByUsername(username.toLowerCase(Locale.ROOT))
+            .orElseThrow(() -> new UsernameNotFoundException("Invalid credentials"));
     return new AccountUser(
-        (UUID) row.get("user_id"),
-        (Integer) row.get("auth_version"),
-        row.get("username").toString(),
-        row.get("password_hash").toString());
+        credential.getId(),
+        credential.getUser().getAuthVersion(),
+        credential.getUsername(),
+        credential.getPasswordHash());
   }
 }

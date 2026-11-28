@@ -8,16 +8,19 @@ import java.util.Locale;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.whitesborobandboosters.rallyboro.persistence.CredentialEntity;
+import org.whitesborobandboosters.rallyboro.persistence.ParticipantEntity;
+import org.whitesborobandboosters.rallyboro.persistence.PersistenceRepositories;
+import org.whitesborobandboosters.rallyboro.persistence.UserEntity;
 import org.whitesborobandboosters.rallyboro.security.Access.Actor;
 import org.whitesborobandboosters.rallyboro.staffing.DomainException;
 
 @Service
 public class Accounts {
-  private final JdbcTemplate db;
+  private final PersistenceRepositories data;
   private final PasswordEncoder encoder;
   private final boolean enabled;
   private final int limit;
@@ -29,11 +32,11 @@ public class Accounts {
   public record AccountCreated(UUID id, String recoveryKey) {}
 
   public Accounts(
-      JdbcTemplate db,
+      PersistenceRepositories data,
       PasswordEncoder encoder,
       @Value("${rallyboro.local-accounts:true}") boolean enabled,
       @Value("${rallyboro.account-attempts-per-minute:10}") int limit) {
-    this.db = db;
+    this.data = data;
     this.encoder = encoder;
     this.enabled = enabled;
     this.limit = limit;
@@ -82,20 +85,21 @@ public class Accounts {
     String normalized = username(name);
     if (displayName == null || displayName.isBlank() || displayName.length() > 80)
       throw new DomainException("INVALID_INPUT", "Display name must be 1–80 characters.");
-    if (db.queryForObject(
-            "SELECT count(*) FROM local_credential WHERE username=?", Integer.class, normalized)
-        > 0) throw new DomainException("CONFLICT", "This username is unavailable.");
+    if (data.credentials().existsByUsername(normalized))
+      throw new DomainException("CONFLICT", "This username is unavailable.");
     String passwordHash = hash(password), key = secret();
     UUID id = UUID.randomUUID();
-    db.update("INSERT INTO app_user(id,display_name) VALUES (?,?)", id, displayName.strip());
-    db.update(
-        "INSERT INTO local_credential(user_id,username,password_hash,recovery_hash) VALUES"
-            + " (?,?,?,?)",
-        id,
-        normalized,
-        passwordHash,
-        SecurityConfig.digest(key));
-    db.update("INSERT INTO participant(id,managing_user_id) VALUES (?,?)", id, id);
+    var user = new UserEntity(id);
+    user.setDisplayName(displayName.strip());
+    data.users().persist(user);
+    var credential = new CredentialEntity(id);
+    credential.setUsername(normalized);
+    credential.setPasswordHash(passwordHash);
+    credential.setRecoveryHash(SecurityConfig.digest(key));
+    data.credentials().persist(credential);
+    var participant = new ParticipantEntity(id);
+    participant.setUserId(id);
+    data.participants().persist(participant);
     return new AccountCreated(id, key);
   }
 
@@ -104,20 +108,16 @@ public class Accounts {
     throttle(address);
     if (key == null || key.length() > 100)
       throw new DomainException("FORBIDDEN", "Invalid username or recovery key.");
-    var rows =
-        db.queryForList(
-            "SELECT * FROM local_credential WHERE username=? FOR UPDATE", username(name));
-    if (rows.isEmpty() || !SecurityConfig.digest(key).equals(rows.getFirst().get("recovery_hash")))
+    var found = data.credentials().findByUsername(username(name));
+    var credential =
+        found.isEmpty() ? null : data.credentials().lockById(found.get().getId()).orElse(null);
+    if (credential == null || !SecurityConfig.digest(key).equals(credential.getRecoveryHash()))
       throw new DomainException("FORBIDDEN", "Invalid username or recovery key.");
     String replacement = secret();
-    UUID id = (UUID) rows.getFirst().get("user_id");
-    db.update(
-        "UPDATE local_credential SET password_hash=?,recovery_hash=?,updated_at=now() WHERE"
-            + " user_id=?",
-        hash(password),
-        SecurityConfig.digest(replacement),
-        id);
-    invalidate(id);
+    credential.setPasswordHash(hash(password));
+    credential.setRecoveryHash(SecurityConfig.digest(replacement));
+    credential.setUpdatedAt(Instant.now());
+    invalidate(credential.getId());
     return replacement;
   }
 
@@ -125,17 +125,9 @@ public class Accounts {
   public boolean changePassword(Actor actor, String current, String password, String address) {
     Access.requireSession(actor);
     throttle(address);
-    var rows =
-        db.queryForList("SELECT * FROM local_credential WHERE user_id=? FOR UPDATE", actor.id());
-    if (rows.isEmpty()
-        || current == null
-        || current.length() > 100
-        || !encoder.matches(current, rows.getFirst().get("password_hash").toString()))
-      throw new DomainException("FORBIDDEN", "The current password is incorrect.");
-    db.update(
-        "UPDATE local_credential SET password_hash=?,updated_at=now() WHERE user_id=?",
-        hash(password),
-        actor.id());
+    var credential = verifiedCredential(actor, current);
+    credential.setPasswordHash(hash(password));
+    credential.setUpdatedAt(Instant.now());
     invalidate(actor.id());
     return true;
   }
@@ -144,24 +136,26 @@ public class Accounts {
   public String rotateRecoveryKey(Actor actor, String current, String address) {
     Access.requireSession(actor);
     throttle(address);
-    var rows =
-        db.queryForList(
-            "SELECT password_hash FROM local_credential WHERE user_id=? FOR UPDATE", actor.id());
-    if (rows.isEmpty()
-        || current == null
-        || current.length() > 100
-        || !encoder.matches(current, rows.getFirst().get("password_hash").toString()))
-      throw new DomainException("FORBIDDEN", "The current password is incorrect.");
+    var credential = verifiedCredential(actor, current);
     String key = secret();
-    db.update(
-        "UPDATE local_credential SET recovery_hash=?,updated_at=now() WHERE user_id=?",
-        SecurityConfig.digest(key),
-        actor.id());
+    credential.setRecoveryHash(SecurityConfig.digest(key));
+    credential.setUpdatedAt(Instant.now());
     return key;
   }
 
+  private CredentialEntity verifiedCredential(Actor actor, String current) {
+    var credential = data.credentials().lockById(actor.id()).orElse(null);
+    if (credential == null
+        || current == null
+        || current.length() > 100
+        || !encoder.matches(current, credential.getPasswordHash()))
+      throw new DomainException("FORBIDDEN", "The current password is incorrect.");
+    return credential;
+  }
+
   private void invalidate(UUID id) {
-    db.update("UPDATE app_user SET auth_version=auth_version+1 WHERE id=?", id);
-    db.update("UPDATE agent_token SET revoked=true WHERE user_id=?", id);
+    var user = data.users().lockById(id).orElseThrow();
+    user.setAuthVersion(user.getAuthVersion() + 1);
+    data.tokens().findByUserId(id).forEach(token -> token.setRevoked(true));
   }
 }
