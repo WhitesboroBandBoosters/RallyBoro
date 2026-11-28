@@ -3,20 +3,25 @@ package org.whitesborobandboosters.rallyboro.security;
 import java.nio.charset.StandardCharsets;
 import java.security.Principal;
 import java.util.UUID;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+import org.whitesborobandboosters.rallyboro.persistence.EventManagerId;
+import org.whitesborobandboosters.rallyboro.persistence.ExternalIdentityId;
+import org.whitesborobandboosters.rallyboro.persistence.MembershipId;
+import org.whitesborobandboosters.rallyboro.persistence.PersistenceRepositories;
 import org.whitesborobandboosters.rallyboro.staffing.DomainException;
 
 @Component
+@Transactional(readOnly = true)
 public class Access {
-  private final JdbcTemplate jdbc;
+  private final PersistenceRepositories data;
 
-  public Access(JdbcTemplate jdbc) {
-    this.jdbc = jdbc;
+  public Access(PersistenceRepositories data) {
+    this.data = data;
   }
 
   public record Actor(UUID id, UUID organizationId, boolean agent, boolean writeEnabled) {}
@@ -30,35 +35,55 @@ public class Access {
       throw new DomainException("UNAUTHENTICATED", "Please sign in.");
     if (principal instanceof UsernamePasswordAuthenticationToken auth
         && auth.getPrincipal() instanceof Actor actor) return actor;
-    String key = "local:" + principal.getName();
-    if (principal instanceof Authentication auth && auth.getPrincipal() instanceof OidcUser oidc) {
-      key = oidc.getIssuer() + "|" + oidc.getSubject();
+    if (principal instanceof Authentication auth
+        && auth.getPrincipal() instanceof AccountUser user) {
+      var stored = data.users().findById(user.id());
+      if (stored.isEmpty() || stored.get().getAuthVersion() != user.version())
+        throw new DomainException("UNAUTHENTICATED", "Please sign in again.");
+      return new Actor(user.id(), null, false, true);
     }
-    UUID id = identity(key);
-    if (jdbc.queryForObject("SELECT count(*) FROM app_user WHERE id=?", Integer.class, id) != 1)
-      throw new DomainException("FORBIDDEN", "This account is not enrolled in the pilot.");
-    return new Actor(id, null, false, true);
+    if (principal instanceof Authentication auth && auth.getPrincipal() instanceof OidcUser oidc) {
+      var identity =
+          data.identities()
+              .findById(new ExternalIdentityId(oidc.getIssuer().toString(), oidc.getSubject()));
+      if (identity.isEmpty())
+        throw new DomainException(
+            "FORBIDDEN", "This sign-in identity has not been linked to an account.");
+      return new Actor(identity.get().getUserId(), null, false, true);
+    }
+    throw new DomainException("UNAUTHENTICATED", "Please sign in.");
   }
 
   public boolean member(Actor actor, UUID org) {
     return (actor.organizationId() == null || actor.organizationId().equals(org))
-        && jdbc.queryForObject(
-                "SELECT count(*) FROM membership WHERE user_id=? AND organization_id=?",
-                Integer.class,
-                actor.id(),
-                org)
-            == 1;
+        && data.memberships().existsById(new MembershipId(actor.id(), org));
   }
 
   public boolean organizer(Actor actor, UUID org) {
+    if (!member(actor, org)) return false;
+    var membership = data.memberships().findById(new MembershipId(actor.id(), org)).orElseThrow();
+    return membership.isCanManage() || membership.isCanOrganize();
+  }
+
+  public boolean manageOrganization(Actor actor, UUID org) {
     return member(actor, org)
-        && jdbc.queryForObject(
-                "SELECT count(*) FROM membership WHERE user_id=? AND organization_id=? AND"
-                    + " role='ORGANIZER'",
-                Integer.class,
-                actor.id(),
-                org)
-            == 1;
+        && data.memberships().existsByIdUserIdAndIdOrganizationIdAndCanManageTrue(actor.id(), org);
+  }
+
+  public boolean manageEvent(Actor actor, UUID event, UUID org) {
+    return member(actor, org)
+        && (organizer(actor, org)
+            || data.managers().existsById(new EventManagerId(event, actor.id())));
+  }
+
+  public void requireEvent(Actor actor, UUID event, UUID org) {
+    if (!manageEvent(actor, event, org)) denied();
+  }
+
+  public boolean memberList(Actor actor, UUID org) {
+    return member(actor, org)
+        && (organizer(actor, org)
+            || data.managers().existsByIdUserIdAndEventOrganizationId(actor.id(), org));
   }
 
   public void requireOrganizer(Actor actor, UUID org) {
@@ -70,6 +95,10 @@ public class Access {
   }
 
   public void session(Actor actor) {
+    requireSession(actor);
+  }
+
+  public static void requireSession(Actor actor) {
     if (actor.agent()) denied();
   }
 

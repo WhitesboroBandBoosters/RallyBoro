@@ -13,7 +13,11 @@ public class FoundationController {
     "/events/{id}",
     "/events/{id}/edit",
     "/my-registrations",
-    "/settings"
+    "/settings",
+    "/account",
+    "/organizations",
+    "/organizations/new",
+    "/invite/{token}"
   })
   public String home() {
     return "forward:/index.html";

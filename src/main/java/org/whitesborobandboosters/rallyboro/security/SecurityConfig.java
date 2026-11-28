@@ -11,13 +11,11 @@ import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -28,6 +26,7 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.csrf.CsrfFilter;
 import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
+import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -59,9 +58,9 @@ public class SecurityConfig {
   @Bean
   SecurityFilterChain security(
       HttpSecurity http,
-      JdbcTemplate jdbc,
+      AgentTokens tokens,
       RequestGuard guard,
-      @Value("${rallyboro.pilot-login:false}") boolean local,
+      @Value("${rallyboro.local-accounts:true}") boolean local,
       ObjectProvider<ClientRegistrationRepository> registrations)
       throws Exception {
     http.authorizeHttpRequests(a ->
@@ -78,6 +77,9 @@ public class SecurityConfig {
                 "/events/**",
                 "/my-registrations",
                 "/settings",
+                "/organizations/**",
+                "/invite/**",
+                "/account",
                 "/assets/**",
                 "/index.html",
                 "/styles.css",
@@ -97,24 +99,11 @@ public class SecurityConfig {
               throws ServletException, IOException {
             String header = request.getHeader("Authorization");
             if (header != null && header.startsWith("Bearer ")) {
-              var rows =
-                  jdbc.queryForList(
-                      "SELECT t.id,t.user_id,t.organization_id,t.write_enabled FROM agent_token t"
-                          + " JOIN membership m ON m.user_id=t.user_id AND"
-                          + " m.organization_id=t.organization_id WHERE token_hash=? AND NOT"
-                          + " revoked AND expires_at>now()",
-                      digest(header.substring(7)));
-              if (rows.size() != 1) {
+              var actor = tokens.authenticate(header.substring(7));
+              if (actor == null) {
                 response.sendError(401);
                 return;
               }
-              var row = rows.getFirst();
-              var actor =
-                  new Access.Actor(
-                      (UUID) row.get("user_id"),
-                      (UUID) row.get("organization_id"),
-                      true,
-                      (Boolean) row.get("write_enabled"));
               var context = SecurityContextHolder.createEmptyContext();
               context.setAuthentication(
                   new UsernamePasswordAuthenticationToken(actor, "", List.of()));
@@ -142,11 +131,12 @@ public class SecurityConfig {
         l -> l.logoutUrl("/auth/logout").logoutSuccessHandler((r, s, a) -> s.setStatus(204)));
     http.exceptionHandling(e -> e.authenticationEntryPoint((r, s, x) -> s.sendError(401)));
     http.headers(h ->
-        h.contentSecurityPolicy(c ->
-            c.policyDirectives(
-                "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:;"
-                    + " connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action"
-                    + " 'self'")));
+        h.referrerPolicy(r -> r.policy(ReferrerPolicyHeaderWriter.ReferrerPolicy.NO_REFERRER))
+            .contentSecurityPolicy(c ->
+                c.policyDirectives(
+                    "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:;"
+                        + " connect-src 'self'; frame-ancestors 'none'; base-uri 'self';"
+                        + " form-action 'self'")));
     return http.build();
   }
 
@@ -156,7 +146,7 @@ public class SecurityConfig {
     private final ObjectProvider<ClientRegistrationRepository> registrations;
 
     AuthSupport(
-        @Value("${rallyboro.pilot-login:false}") boolean local,
+        @Value("${rallyboro.local-accounts:true}") boolean local,
         ObjectProvider<ClientRegistrationRepository> registrations) {
       this.local = local;
       this.registrations = registrations;

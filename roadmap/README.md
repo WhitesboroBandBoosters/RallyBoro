@@ -12,7 +12,7 @@ Java 25, Spring Boot 4.2.0, and the Maven Wrapper are the current build foundati
 
 ## Implementation status
 
-PR #16 implements phases 1–2 as a controlled synthetic-data pilot: React/TypeScript, GraphQL, event staffing, signup/cancellation, and organizer coverage. See [initiative 2 evidence](../docs/initiative-2-verification.md). Guest participation, waitlists, approvals, templates, notifications, real contact collection, and broader deployment remain later scope.
+PR #16 implements phases 1–2 as a controlled synthetic-data pilot: React/TypeScript, GraphQL, event staffing, signup/cancellation, and organizer coverage. See [initiative 2 evidence](../docs/initiative-2-verification.md). Phase 3 begins in [#20](https://github.com/WhitesboroBandBoosters/RallyBoro/issues/20) with local accounts, self-service organizations, scoped permissions, and manually shared invitations; see [decision 004](../docs/decisions/004-local-accounts-and-scoped-access.md). Guest participation, dependents, proximity discovery, waitlists, approvals, templates, notifications, real contact collection, and broader deployment remain later scope.
 
 ## Initiative sequence
 
@@ -20,7 +20,7 @@ PR #16 implements phases 1–2 as a controlled synthetic-data pilot: React/TypeS
 | --- | --- | --- |
 | 1 | [Runnable foundation](01-runnable-foundation.md) | Application and persistent storage running through Tailscale, with a minimal responsive page and health check. |
 | 2 | [First staffing workflow](02-first-staffing-workflow.md) | An organizer creates an event; a pilot volunteer signs up, reviews, and cancels; the organizer manages coverage. |
-| 3 | [Broader participation](03-broader-participation.md) | Invitations, private/public access, account-free participation, dependents, and a resolved contact/notification policy. |
+| 3 | [Broader participation](03-broader-participation.md) | Invitations, private/public access, account-free participation, dependents, and a resolved contact/notification policy; proximity-based public-event discovery is requested, with delivery scope to define. |
 | 4 | [Staffing controls](04-staffing-controls.md) | Approval-required roles, waitlists, and safe management of changes after signup. |
 | 5 | [Templates and series](05-templates-and-series.md) | Reusable staffing structure and independently adjustable occurrences. |
 | 6 | [Notifications, calendars, and outputs](06-notifications-calendars-outputs.md) | Selected app notifications, calendar output, and useful operational reports. |

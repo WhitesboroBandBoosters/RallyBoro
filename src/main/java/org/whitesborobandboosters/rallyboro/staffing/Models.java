@@ -25,9 +25,15 @@ public final class Models {
 
   public record Viewer(UUID id, String displayName, List<Membership> memberships) {}
 
-  public record Membership(UUID organizationId, String organizationName, String role) {}
+  public record Membership(
+      UUID organizationId,
+      String organizationName,
+      String role,
+      boolean canManage,
+      boolean canOrganize) {}
 
-  public record Member(UUID id, String displayName, String role) {}
+  public record Member(
+      UUID id, String displayName, String role, boolean canManage, boolean canOrganize) {}
 
   public record EventPage(List<EventData> items, int total) {}
 

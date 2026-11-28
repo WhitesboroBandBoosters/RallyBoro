@@ -17,7 +17,7 @@ const credentials = Object.fromEntries(
 );
 async function login(page: Page, user: string) {
   await page.goto("/login");
-  await page.getByLabel("Pilot username").fill(user);
+  await page.getByLabel("Username").fill(user);
   await page.getByLabel("Password", { exact: true }).fill(credentials[user]);
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await expect(
@@ -32,9 +32,13 @@ test("organizer creates staffing; volunteer signs up and cancels; coverage persi
 }, info) => {
   const organizer = await browser.newContext({
     viewport: info.project.use.viewport,
+    isMobile: !!info.project.use.isMobile,
+    hasTouch: !!info.project.use.hasTouch,
   });
   const volunteer = await browser.newContext({
     viewport: info.project.use.viewport,
+    isMobile: !!info.project.use.isMobile,
+    hasTouch: !!info.project.use.hasTouch,
   });
   const page = await organizer.newPage();
   const second = await volunteer.newPage();
@@ -187,6 +191,8 @@ test("organizer creates staffing; volunteer signs up and cancels; coverage persi
   ).toBeVisible();
   const helperContext = await browser.newContext({
     viewport: info.project.use.viewport,
+    isMobile: !!info.project.use.isMobile,
+    hasTouch: !!info.project.use.hasTouch,
   });
   const helper = await helperContext.newPage();
   await login(helper, "helper");

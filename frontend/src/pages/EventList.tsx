@@ -22,7 +22,7 @@ export function EventList() {
       }),
     [organization.organizationId, offset],
   );
-  const organizer = organization.role === "ORGANIZER";
+  const organizer = organization.canOrganize;
   return (
     <>
       <div className="page-heading">

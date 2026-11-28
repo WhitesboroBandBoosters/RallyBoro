@@ -27,6 +27,8 @@ The independent persona review identified four usability/data issues. The fixes 
 
 Read-only browser smoke checks passed after redeployment for organizer, volunteer, and helper accounts. At 375×800 the compact navigation measured 133 pixels high and the first View event action ended at pixel 349. Historical registration access to hidden events remains intact.
 
+The timestamped Community supper records came from manually targeting the automated browser workflow at the shared deployment; they were actual test output, not startup fixtures or a curated sample set. The Band Banquet Staffing Review record came from a browser-driven functional evaluation. Automated suites now use isolated disposable application/database environments. The user clarified on November 28, 2026 that intentional evaluation in a dedicated pilot organization with pilot accounts and private/hidden events is acceptable, while accumulating test copies is not. This refines the earlier blanket read-only guidance: reuse a small set of pilot fixtures, clean up temporary synthetic records, and keep checks outside that pilot scope read-only.
+
 The shared pilot was backed up before duplicate synthetic data was removed. Five timestamped test events and their synthetic history/receipts were removed; the remaining sample is labeled **Community supper (demo)**. The hidden **Band Banquet Staffing Review** and its history remain intact. The cleanup aborted if any targeted event had an active assignment; none did. No database deployment files or credentials are part of this change.
 
 ## Release limits and follow-up
