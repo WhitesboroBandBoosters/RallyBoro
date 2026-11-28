@@ -24,3 +24,8 @@ exclude:
   - tmp
   - research
   - docs/conversation-history.md
+  - src
+  - Dockerfile
+  - compose.yml
+  - .dockerignore
+  - frontend

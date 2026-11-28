@@ -10,6 +10,10 @@ This roadmap translates the [design brief](../docs/design-brief.md) into ordered
 
 Java 25, Spring Boot 4.2.0, and the Maven Wrapper are the current build foundation. Docker is available. Database, frontend, authentication, and application deployment details still need decisions. Keep one application with clear business boundaries, a documented API, and equally usable mobile and desktop workflows. A later language rewrite is possible, not a prerequisite or planned milestone.
 
+## Implementation status
+
+PR #16 implements phases 1–2 as a controlled synthetic-data pilot: React/TypeScript, GraphQL, event staffing, signup/cancellation, and organizer coverage. See [initiative 2 evidence](../docs/initiative-2-verification.md). Guest participation, waitlists, approvals, templates, notifications, real contact collection, and broader deployment remain later scope.
+
 ## Initiative sequence
 
 | Phase | Initiative | Deliverable |

@@ -1,0 +1,47 @@
+type Query {
+  appInfo: AppInfo!
+  viewer: Viewer!
+  events(organizationId: ID!, first: Int! = 25, offset: Int! = 0): EventPage!
+  event(id: ID!): Event!
+  signupGuidance(eventId: ID!): [SignupGuidance!]!
+  myRegistrations(first: Int! = 50, offset: Int! = 0): [Registration!]!
+  coverage(eventId: ID!, first: Int! = 100, offset: Int! = 0): [Registration!]!
+  members(organizationId: ID!, first: Int! = 50, offset: Int! = 0): [Member!]!
+  agentTokens: [AgentToken!]!
+}
+type Mutation {
+  saveEvent(input: EventInput!): Event!
+  saveJob(input: JobInput!): Job!
+  saveShift(input: ShiftInput!): Shift!
+  signup(shiftId: ID!, requestId: ID!): Registration!
+  cancelRegistration(id: ID!): Registration!
+  assignVolunteer(shiftId: ID!, userId: ID!, requestId: ID!): Registration!
+  removeAssignment(id: ID!): Registration!
+  createAgentToken(organizationId: ID!, name: String!, writeEnabled: Boolean!): TokenGrant!
+  revokeAgentToken(id: ID!): Boolean!
+}
+type AppInfo { name: String!, stage: String! }
+type Viewer { id: ID!, displayName: String!, memberships: [Membership!]! }
+type Membership { organizationId: ID!, organizationName: String!, role: Role! }
+enum Role { ORGANIZER VOLUNTEER }
+enum Visibility { HIDDEN PRIVATE PUBLIC }
+enum RegistrationStatus { CONFIRMED CANCELLED }
+type EventPage { items: [Event!]!, total: Int! }
+type Event {
+  id: ID!, organizationId: ID!, title: String!, description: String!, location: String!, eventDate: String!, timezone: String!,
+  visibility: Visibility!, signupOpen: Boolean!, revision: Int!, canManage: Boolean!, jobs: [Job!]!
+}
+type Job { id: ID!, eventId: ID!, name: String!, description: String!, eligibility: String!, shifts: [Shift!]! }
+type Shift { id: ID!, jobId: ID!, startsAt: String!, endsAt: String!, capacity: Int!, filled: Int!, remaining: Int! }
+"Personal booking and time-conflict guidance; authoritative checks still run at signup."
+type SignupGuidance { shiftId: ID!, registrationId: ID, conflict: Boolean! }
+type Registration { id: ID!, status: RegistrationStatus!, participantName: String!, event: Event!, shift: Shift! }
+type Member { id: ID!, displayName: String!, role: Role! }
+type AgentToken { id: ID!, name: String!, organizationId: ID!, writeEnabled: Boolean!, expiresAt: String!, revoked: Boolean! }
+type TokenGrant { token: String!, details: AgentToken! }
+input EventInput {
+  id: ID, organizationId: ID!, title: String!, description: String!, location: String!, eventDate: String!, timezone: String!,
+  visibility: Visibility!, signupOpen: Boolean!, revision: Int
+}
+input JobInput { id: ID, eventId: ID!, name: String!, description: String!, eligibility: String! }
+input ShiftInput { id: ID, jobId: ID!, startsAt: String!, endsAt: String!, capacity: Int! }

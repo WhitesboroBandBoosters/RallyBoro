@@ -10,7 +10,7 @@ Start RallyBoro from a fresh checkout and reach a minimal responsive page and he
 
 ## Scope and sequence
 
-1. Select the database, migration tool, frontend approach, and local/container runtime arrangement. Favor familiar tools and a small deployment; PostgreSQL remains a candidate, not a decision made by this plan.
+1. Use PostgreSQL for the first implementation. The database is operator-provided infrastructure, outside this repository. Select the migration tool, frontend approach, and application runtime arrangement.
 2. Add the Spring Boot entry point, HTTP support, executable packaging, configuration profiles, health reporting, and a minimal UI shell. Keep Java/Spring Boot/Maven as established in the project.
 3. Add durable storage and a versioned migration. Exercise persistence through a restricted development fixture rather than a publicly writable diagnostic endpoint.
 4. Establish reproducible local startup and container packaging. Document ports, configuration, secret injection, persistent volumes, and the actual host arrangement. Configure Tailscale access and HTTPS appropriate to that arrangement without assuming public exposure.
@@ -18,7 +18,7 @@ Start RallyBoro from a fresh checkout and reach a minimal responsive page and he
 
 ## Decisions before implementation
 
-Choose frontend and persistence technologies, an established authentication integration for phase 2, and the prototype's network exposure. Define how configuration and encryption keys will be supplied. Public pages, notification providers, and payment adapters do not need to be selected here.
+The [foundation decision record](../docs/decisions/001-foundation.md) records the temporary Thymeleaf shell, JDBC/Flyway, Spring Security OIDC for phase 2, and Docker/Tailscale access. [Decision 002](../docs/decisions/002-graphql-and-interactive-ui.md) supersedes its product UI/API assumptions: initiative 2 uses an interactive typed frontend and GraphQL. Define how configuration and encryption keys will be supplied. Public pages, notification providers, and payment adapters do not need to be selected here.
 
 ## Completion evidence
 
@@ -41,3 +41,7 @@ Track current progress in [initiative #1](https://github.com/WhitesboroBandBoost
 - [#6: build: package and deploy the prototype through Tailscale](https://github.com/WhitesboroBandBoosters/RallyBoro/issues/6)
 - [#7: ci: verify application builds and document recovery](https://github.com/WhitesboroBandBoosters/RallyBoro/issues/7)
 - [#8: docs: verify runnable foundation and establish API conventions](https://github.com/WhitesboroBandBoosters/RallyBoro/issues/8)
+
+## Implementation evidence
+
+See the [initiative 1 verification record](../docs/initiative-1-verification.md) and [running guide](../docs/running.md). Staffing and contact collection remain phase-2 work.

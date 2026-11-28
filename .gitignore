@@ -21,3 +21,9 @@ __pycache__/
 *.pyc
 .DS_Store
 Thumbs.db
+
+# Frontend build and generated GraphQL operation types
+/frontend/dist/
+/frontend/src/generated.ts
+/frontend/test-results/
+/frontend/playwright-report/
