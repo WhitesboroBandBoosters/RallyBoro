@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { client, message } from "../api";
+import { client, message, errorCode } from "../api";
 import {
   Alert,
   Empty,
@@ -17,11 +17,13 @@ export function EventView() {
   const { id = "" } = useParams();
   const load = useLoad(() => client.request(G.EventDocument, { id }), [id]);
   const [error, setError] = useState("");
+  const [overlapError, setOverlapError] = useState(false);
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState("");
   async function signup(shiftId: string) {
     setBusy(shiftId);
     setError("");
+    setOverlapError(false);
     setNotice("");
     try {
       await client.request(G.SignupDocument, {
@@ -32,6 +34,7 @@ export function EventView() {
       load.refresh();
     } catch (e) {
       setError(message(e));
+      setOverlapError(errorCode(e) === "OVERLAP");
       load.refresh();
     } finally {
       setBusy("");
@@ -40,12 +43,24 @@ export function EventView() {
   if (load.loading) return <Loader />;
   if (load.error || !load.data)
     return (
-      <LoadError
-        error={load.error ?? "Event unavailable"}
-        retry={load.refresh}
-      />
+      <>
+        {load.code === "FORBIDDEN" || load.code === "NOT_FOUND" ? (
+          <Alert>This event is unavailable to your account.</Alert>
+        ) : (
+          <LoadError
+            error={load.error ?? "Event unavailable"}
+            retry={load.refresh}
+          />
+        )}
+        <Link className="back" to="/">
+          ← Back to Events
+        </Link>
+      </>
     );
   const event = load.data.event;
+  const guidance = new Map(
+    load.data.signupGuidance.map((item) => [item.shiftId, item]),
+  );
   const shifts = event.jobs.flatMap((j) => j.shifts);
   const cap = shifts.reduce((a, s) => a + s.capacity, 0),
     filled = shifts.reduce((a, s) => a + s.filled, 0);
@@ -87,7 +102,14 @@ export function EventView() {
           <span>Places available</span>
         </div>
       </div>
-      {error && <Alert>{error}</Alert>}
+      {error && (
+        <Alert>
+          {error}{" "}
+          {overlapError && (
+            <Link to="/my-registrations">View My registrations</Link>
+          )}
+        </Alert>
+      )}
       {notice && (
         <p className="success" role="status">
           {notice}
@@ -121,37 +143,68 @@ export function EventView() {
             {job.eligibility && (
               <p className="small muted">Please note: {job.eligibility}</p>
             )}
-            {job.shifts.map((shift) => (
-              <div className="shift-row" key={shift.id}>
-                <div>
-                  <strong>
-                    {localDate(shift.startsAt, event.timezone)} –{" "}
-                    {new Intl.DateTimeFormat(undefined, {
-                      hour: "numeric",
-                      minute: "2-digit",
-                      timeZone: event.timezone,
-                    }).format(new Date(shift.endsAt))}
-                  </strong>
-                  <span className="small muted">
-                    {shift.filled} of {shift.capacity} filled ·{" "}
-                    {shift.remaining} available
-                  </span>
+            {job.shifts.map((shift) => {
+              const personal = guidance.get(shift.id);
+              const registered = !!personal?.registrationId;
+              const conflict = !!personal?.conflict;
+              return (
+                <div className="shift-row" key={shift.id}>
+                  <div>
+                    <strong>
+                      {localDate(shift.startsAt, event.timezone)} –{" "}
+                      {new Intl.DateTimeFormat(undefined, {
+                        hour: "numeric",
+                        minute: "2-digit",
+                        timeZone: event.timezone,
+                      }).format(new Date(shift.endsAt))}
+                    </strong>
+                    <span className="small muted">
+                      {shift.filled} of {shift.capacity} filled ·{" "}
+                      {shift.remaining} available
+                    </span>
+                    {(registered || conflict) && (
+                      <span
+                        className="signup-guidance"
+                        id={"guidance-" + shift.id}
+                      >
+                        {registered
+                          ? "You’re registered for this shift. "
+                          : "You already have a shift at this time. "}
+                        <Link to="/my-registrations">
+                          View My registrations
+                        </Link>
+                      </span>
+                    )}
+                  </div>
+                  <button
+                    className="primary"
+                    aria-describedby={
+                      registered || conflict
+                        ? "guidance-" + shift.id
+                        : undefined
+                    }
+                    disabled={
+                      !event.signupOpen ||
+                      shift.remaining === 0 ||
+                      !!busy ||
+                      registered ||
+                      conflict
+                    }
+                    onClick={() => signup(shift.id)}
+                  >
+                    {busy === shift.id
+                      ? "Confirming…"
+                      : registered
+                        ? "Registered"
+                        : conflict
+                          ? "Time conflict"
+                          : shift.remaining === 0
+                            ? "Full"
+                            : "Sign up"}
+                  </button>
                 </div>
-                <button
-                  className="primary"
-                  disabled={
-                    !event.signupOpen || shift.remaining === 0 || !!busy
-                  }
-                  onClick={() => signup(shift.id)}
-                >
-                  {busy === shift.id
-                    ? "Confirming…"
-                    : shift.remaining === 0
-                      ? "Full"
-                      : "Sign up"}
-                </button>
-              </div>
-            ))}
+              );
+            })}
             {job.shifts.length === 0 && (
               <p className="muted">Shifts have not been added yet.</p>
             )}

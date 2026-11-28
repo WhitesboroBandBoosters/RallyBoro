@@ -10,7 +10,7 @@ The staffing API is schema-first GraphQL at **POST `/graphql`**, shared by brows
 
 Browser clients sign in through configured Spring Security OIDC or the explicitly enabled controlled-pilot password login. Fetch `GET /auth/csrf` with same-origin credentials, then send its returned header name/token on login, logout, and GraphQL POST requests. Refetch the token after login/logout; sessions rotate. Never copy browser session cookies into agents. `GET /auth/options` reports enabled login options without credentials.
 
-An authenticated browser user can create a scoped seven-day agent token under Agent access. Supply it as `Authorization: Bearer <token>` in an HTTPS GraphQL request; no cookie/CSRF token is required for a valid bearer credential. Tokens have organization and read/write scope, can be revoked, and cannot exceed the owner's permissions. Store the token privately and keep it out of command-line history, logs, and shared files.
+An authenticated browser user can create a scoped seven-day agent token under Account → Agent access. Supply it as `Authorization: Bearer <token>` in an HTTPS GraphQL request; no cookie/CSRF token is required for a valid bearer credential. Tokens have organization and read/write scope, can be revoked, and cannot exceed the owner's permissions. Store the token privately and keep it out of command-line history, logs, and shared files.
 
 ## Operations
 
@@ -19,7 +19,7 @@ An authenticated browser user can create a scoped seven-day agent token under Ag
 | Discovery | `appInfo` (non-sensitive), `viewer` (own identity and memberships) |
 | Events | `events`, `event`, `saveEvent` |
 | Staffing structure | `saveJob`, `saveShift` |
-| Participation | `signup`, `myRegistrations`, `cancelRegistration` |
+| Participation | `signupGuidance`, `signup`, `myRegistrations`, `cancelRegistration` |
 | Organizer management | `members`, `coverage`, `assignVolunteer`, `removeAssignment` |
 | Agent credentials | `agentTokens`, `createAgentToken`, `revokeAgentToken` (browser session only) |
 
@@ -32,6 +32,8 @@ query MyWorkspace {
 ```
 
 Events and list operations use `first` and `offset` (maximum first 100, offset 10000). Event lists return a total; other lists use page-length navigation. The pilot UI pages event lists, registrations, and coverage, and offers the first 100 organization members for assignment. Membership invitation/scaling beyond that pilot boundary is future work. Event nesting is also bounded to 20 jobs and 100 shifts per job.
+
+`signupGuidance(eventId: ID!)` returns each shift's ID, the caller's current confirmed registration ID (if any), and a time-conflict flag based on the caller's confirmed bookings across events. It applies the same visibility and token organization boundaries as `event`; it exposes no other participant's identity or registration details. The result is bounded by the event's staffing limits and does not depend on a page of registration history. Cancelled bookings do not cause conflicts, and adjacent shifts are allowed. Guidance is a snapshot: refresh to see changes made elsewhere, and always handle authoritative signup rejection if availability or commitments change.
 
 Write inputs have bounded strings and validated date/time, visibility, revision, and capacity fields. The UI uses event-zone local times; API shift inputs are ISO instants. Signup/assignment require a fresh UUID `requestId` for a new intent; retry the same ID after an uncertain response. Reusing it for another action fails. Cancellation/removal are idempotent. Metadata edits need the current event `revision`; a stale edit must reload before retrying. Creation is not automatically retried. Business checks are transactional, not guaranteed by GraphQL's field execution order.
 

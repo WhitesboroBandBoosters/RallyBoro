@@ -18,7 +18,7 @@ public class PilotUiServer {
     Path directory = Path.of("target");
     Files.createDirectories(directory);
     StringBuilder accounts = new StringBuilder(), credentials = new StringBuilder();
-    for (String username : new String[] {"organizer", "volunteer"}) {
+    for (String username : new String[] {"organizer", "volunteer", "helper"}) {
       byte[] bytes = new byte[24];
       new SecureRandom().nextBytes(bytes);
       String password = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);

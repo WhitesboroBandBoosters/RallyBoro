@@ -151,30 +151,38 @@ small {
   background: #f5eef1;
   color: #800020;
 }
-.sidebar-foot {
-  margin-top: auto;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.65rem;
-  border-top: 1px solid #e3d7dc;
-  padding-top: 1.2rem;
+.organization-name {
+  margin: 2rem 0 0;
   font-size: 0.85rem;
-}
-.sidebar-foot small {
-  display: block;
   color: #75666d;
-  font-size: 0.72rem;
+  overflow-wrap: anywhere;
 }
-.avatar {
-  width: 34px;
-  height: 34px;
+.account-menu {
+  margin-top: auto;
+  position: relative;
+}
+.account-menu summary {
+  cursor: pointer;
+  padding: 0.65rem;
+  min-height: 44px;
+  border-radius: 0.55rem;
+  font-weight: 650;
+}
+.account-panel {
   display: grid;
-  place-items: center;
-  border-radius: 50%;
-  background: #f5eef1;
-  color: #3c2b33;
-  font-weight: 750;
+  gap: 0.8rem;
+  padding: 1rem;
+  border: 1px solid #e3d7dc;
+  border-radius: 0.6rem;
+  background: white;
+  overflow-wrap: anywhere;
+}
+.account-panel small {
+  color: #75666d;
+}
+.account-panel a {
+  padding: 0.65rem 0;
+  min-height: 44px;
 }
 .text-button {
   padding: 0;
@@ -188,24 +196,6 @@ small {
   width: 100%;
   padding: 0 2.6rem 3rem;
   min-width: 0;
-}
-.topbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  min-height: 76px;
-  border-bottom: 1px solid #e3d7dc;
-  color: #75666d;
-  font-size: 0.82rem;
-  gap: 1rem;
-}
-.pilot-pill {
-  border: 1px solid #e3d7dc;
-  border-radius: 20px;
-  padding: 0.2rem 0.65rem;
-  font-size: 0.7rem;
-  color: #75666d;
-  white-space: nowrap;
 }
 .page-heading {
   display: flex;
@@ -318,8 +308,33 @@ progress::-moz-progress-bar {
   padding-top: 1rem;
   color: #75666d;
 }
-.card-footer a {
+.card-heading {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 0.3rem 1rem;
+  margin-bottom: 0.8rem;
+}
+.card-heading h2 {
+  flex: 1 1 180px;
+  overflow-wrap: anywhere;
+}
+.card-action {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-size: 0.85rem;
   font-weight: 700;
+}
+.signup-guidance {
+  margin-top: 0.5rem;
+  max-width: 34rem;
+}
+.shift-row > div {
+  min-width: 0;
+}
+.shift-row > button {
+  flex-shrink: 0;
 }
 .empty {
   padding: 4rem 1.5rem;
@@ -595,36 +610,55 @@ button:focus-visible {
     position: static;
     border-right: 0;
     border-bottom: 1px solid #e3d7dc;
-    padding: 1rem;
+    padding: 0.65rem 1rem;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.3rem 0.5rem;
   }
   .sidebar .brand {
     padding-left: 0;
   }
+  .org-picker,
+  .organization-name {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    margin: 0;
+  }
   .org-picker {
-    margin-top: 1rem;
+    font-size: 0;
+    gap: 0;
+  }
+  .account-menu {
+    grid-column: 2;
+    grid-row: 1;
+    margin: 0;
+  }
+  .account-menu summary {
+    font-size: 0.85rem;
+  }
+  .account-panel {
+    position: absolute;
+    z-index: 10;
+    right: 0;
+    top: 100%;
+    width: min(280px, calc(100vw - 2rem));
+    box-shadow: 0 4px 16px #3c2b3320;
   }
   .sidebar nav {
     display: flex;
     flex-wrap: wrap;
-    margin-top: 0.6rem;
+    margin-top: 0;
+    grid-column: 1 / -1;
+    grid-row: 3;
     gap: 0.25rem;
   }
   .sidebar nav a {
     padding: 0.55rem;
     font-size: 0.8rem;
   }
-  .sidebar-foot {
-    padding-top: 0.7rem;
-    margin-top: 0.6rem;
-  }
-  .sidebar-foot .text-button {
-    margin-left: auto;
-  }
   .content {
     padding: 0 1rem 2rem;
-  }
-  .topbar {
-    min-height: 52px;
   }
   .page-heading {
     flex-direction: column;

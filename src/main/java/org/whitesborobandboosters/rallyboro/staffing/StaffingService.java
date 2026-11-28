@@ -144,6 +144,31 @@ public class StaffingService {
     return eventData(actor, row);
   }
 
+  public List<SignupGuidance> signupGuidance(Actor actor, UUID eventId) {
+    visible(actor, eventRow(eventId));
+    // Only the caller's confirmed commitments affect guidance. Do not expose other participants.
+    return db.query(
+        """
+        SELECT s.id,
+          (SELECT r.id FROM registration r JOIN participant p ON p.id=r.participant_id
+           WHERE p.managing_user_id=? AND r.shift_id=s.id AND r.status='CONFIRMED') AS registration_id,
+          EXISTS (SELECT 1 FROM registration r JOIN participant p ON p.id=r.participant_id
+                  JOIN shift booked ON booked.id=r.shift_id
+                  WHERE p.managing_user_id=? AND r.status='CONFIRMED' AND booked.id<>s.id
+                  AND booked.starts_at<s.ends_at AND booked.ends_at>s.starts_at) AS conflict
+        FROM shift s JOIN job j ON j.id=s.job_id WHERE j.event_id=?
+        ORDER BY s.starts_at,s.id
+        """,
+        (r, i) ->
+            new SignupGuidance(
+                r.getObject("id", UUID.class),
+                r.getObject("registration_id", UUID.class),
+                r.getBoolean("conflict")),
+        actor.id(),
+        actor.id(),
+        eventId);
+  }
+
   private EventData eventData(Actor actor, Map<String, Object> row) {
     return new EventData(
         uuid(row, "id"),
@@ -525,7 +550,13 @@ public class StaffingService {
               participantId,
               slot.get("ends_at"),
               slot.get("starts_at"));
-      require(overlap == 0, "OVERLAP", "This participant already has a shift at that time.");
+      require(
+          overlap == 0,
+          "OVERLAP",
+          assignment
+              ? "This participant already has a shift at that time."
+              : "You already have a shift at this time. View My registrations to review your"
+                  + " bookings.");
       db.update(
           "INSERT INTO registration(id,participant_id,shift_id,status) VALUES (?,?,?,'CONFIRMED')",
           id,

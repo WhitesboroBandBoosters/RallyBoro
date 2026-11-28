@@ -1,4 +1,4 @@
-import { message } from "./api";
+import { message, errorCode } from "./api";
 import {
   createContext,
   useContext,
@@ -47,9 +47,12 @@ export function Empty({
 }
 
 export function useLoad<T>(loader: () => Promise<T>, deps: unknown[]) {
-  const [state, set] = useState<{ data?: T; error?: string; loading: boolean }>(
-    { loading: true },
-  );
+  const [state, set] = useState<{
+    data?: T;
+    error?: string;
+    code?: string;
+    loading: boolean;
+  }>({ loading: true });
   const [version, bump] = useState(0);
   useEffect(() => {
     let live = true;
@@ -59,7 +62,8 @@ export function useLoad<T>(loader: () => Promise<T>, deps: unknown[]) {
         if (live) set({ data, loading: false });
       })
       .catch((e) => {
-        if (live) set({ error: message(e), loading: false });
+        if (live)
+          set({ error: message(e), code: errorCode(e), loading: false });
       });
     return () => {
       live = false;

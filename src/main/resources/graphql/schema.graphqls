@@ -3,6 +3,7 @@ type Query {
   viewer: Viewer!
   events(organizationId: ID!, first: Int! = 25, offset: Int! = 0): EventPage!
   event(id: ID!): Event!
+  signupGuidance(eventId: ID!): [SignupGuidance!]!
   myRegistrations(first: Int! = 50, offset: Int! = 0): [Registration!]!
   coverage(eventId: ID!, first: Int! = 100, offset: Int! = 0): [Registration!]!
   members(organizationId: ID!, first: Int! = 50, offset: Int! = 0): [Member!]!
@@ -32,6 +33,8 @@ type Event {
 }
 type Job { id: ID!, eventId: ID!, name: String!, description: String!, eligibility: String!, shifts: [Shift!]! }
 type Shift { id: ID!, jobId: ID!, startsAt: String!, endsAt: String!, capacity: Int!, filled: Int!, remaining: Int! }
+"Personal booking and time-conflict guidance; authoritative checks still run at signup."
+type SignupGuidance { shiftId: ID!, registrationId: ID, conflict: Boolean! }
 type Registration { id: ID!, status: RegistrationStatus!, participantName: String!, event: Event!, shift: Shift! }
 type Member { id: ID!, displayName: String!, role: Role! }
 type AgentToken { id: ID!, name: String!, organizationId: ID!, writeEnabled: Boolean!, expiresAt: String!, revoked: Boolean! }

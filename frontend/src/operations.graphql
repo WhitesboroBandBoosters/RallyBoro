@@ -4,7 +4,7 @@ fragment EventFields on Event {id organizationId title description location even
 fragment RegistrationFields on Registration {id status participantName event {...EventFields} shift {...Slot}}
 query Viewer {viewer {id displayName memberships {organizationId organizationName role}}}
 query Events($organizationId:ID!,$offset:Int!) {events(organizationId:$organizationId,first:12,offset:$offset){total items {...EventFields}}}
-query Event($id:ID!) {event(id:$id) {...EventFields}}
+query Event($id:ID!) {event(id:$id) {...EventFields} signupGuidance(eventId:$id) {shiftId registrationId conflict}}
 query Registrations($offset:Int!) {myRegistrations(first:25,offset:$offset) {...RegistrationFields}}
 query Coverage($eventId:ID!,$offset:Int!) {coverage(eventId:$eventId,first:50,offset:$offset) {...RegistrationFields}}
 query Members($organizationId:ID!) {members(organizationId:$organizationId,first:100,offset:0){id displayName role}}

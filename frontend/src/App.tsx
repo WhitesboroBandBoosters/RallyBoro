@@ -45,20 +45,24 @@ export function App() {
           <Link className="brand" to="/">
             RallyBoro
           </Link>
-          <label className="org-picker">
-            Organization
-            <select
-              aria-label="Organization"
-              value={organization.organizationId}
-              onChange={(e) => setSelected(e.target.value)}
-            >
-              {viewer.memberships.map((m) => (
-                <option key={m.organizationId} value={m.organizationId}>
-                  {m.organizationName}
-                </option>
-              ))}
-            </select>
-          </label>
+          {viewer.memberships.length > 1 ? (
+            <label className="org-picker">
+              Organization
+              <select
+                aria-label="Organization"
+                value={organization.organizationId}
+                onChange={(e) => setSelected(e.target.value)}
+              >
+                {viewer.memberships.map((m) => (
+                  <option key={m.organizationId} value={m.organizationId}>
+                    {m.organizationName}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : (
+            <p className="organization-name">{organization.organizationName}</p>
+          )}
           <nav aria-label="Main navigation">
             <NavLink to="/" end>
               <span aria-hidden="true">▦</span> Events
@@ -66,30 +70,29 @@ export function App() {
             <NavLink to="/my-registrations">
               <span aria-hidden="true">✓</span> My registrations
             </NavLink>
-            <NavLink to="/settings">
-              <span aria-hidden="true">⚙</span> Agent access
-            </NavLink>
           </nav>
-          <div className="sidebar-foot">
-            <span className="avatar">{viewer.displayName.slice(0, 1)}</span>
-            <div>
+          <details className="account-menu">
+            <summary>Account</summary>
+            <div className="account-panel">
               <strong>{viewer.displayName}</strong>
               <small>
                 {organization.role === "ORGANIZER"
                   ? "Event organizer"
                   : "Volunteer"}
               </small>
+              <Link
+                to="/settings"
+                onClick={(e) =>
+                  e.currentTarget.closest("details")?.removeAttribute("open")
+                }
+              >
+                Agent access
+              </Link>
+              <button onClick={logout}>Sign out</button>
             </div>
-            <button className="text-button" onClick={logout}>
-              Sign out
-            </button>
-          </div>
+          </details>
         </aside>
         <main className="content">
-          <header className="topbar">
-            <span>{organization.organizationName}</span>
-            <span className="pilot-pill">Staffing pilot</span>
-          </header>
           <Routes>
             <Route path="/login" element={<Navigate to="/" replace />} />
             <Route path="/" element={<EventList />} />

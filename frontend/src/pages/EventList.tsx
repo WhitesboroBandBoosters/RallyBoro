@@ -64,9 +64,17 @@ export function EventList() {
                         </span>
                         <Badge event={event} />
                       </div>
-                      <h2>
-                        <Link to={"/events/" + event.id}>{event.title}</Link>
-                      </h2>
+                      <div className="card-heading">
+                        <h2>
+                          <Link to={"/events/" + event.id}>{event.title}</Link>
+                        </h2>
+                        <Link
+                          className="card-action"
+                          to={"/events/" + event.id}
+                        >
+                          View event →
+                        </Link>
+                      </div>
                       <p className="location">
                         {event.location || "Location to be confirmed"}
                       </p>
@@ -88,7 +96,6 @@ export function EventList() {
                         <span>
                           {event.jobs.length} jobs · {shifts.length} shifts
                         </span>
-                        <Link to={"/events/" + event.id}>View event →</Link>
                       </div>
                     </article>
                   );

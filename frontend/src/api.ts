@@ -30,3 +30,10 @@ export function message(error: unknown): string {
     ? error.message
     : "Something went wrong. Please try again.";
 }
+
+export function errorCode(error: unknown): string | undefined {
+  if (error instanceof ClientError) {
+    const code = error.response.errors?.[0]?.extensions?.code;
+    return typeof code === "string" ? code : undefined;
+  }
+}

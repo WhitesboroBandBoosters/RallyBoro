@@ -202,6 +202,73 @@ class StaffingTest {
     return "mutation {signup(shiftId:\"" + shift + "\",requestId:\"" + request + "\"){id status}}";
   }
 
+  private UUID eventForShift(UUID shift) {
+    return db.queryForObject(
+        "SELECT j.event_id FROM job j JOIN shift s ON s.job_id=j.id WHERE s.id=?",
+        UUID.class,
+        shift);
+  }
+
+  private String guidance(UUID event) {
+    return "{signupGuidance(eventId:\"" + event + "\"){shiftId registrationId conflict}}";
+  }
+
+  @Test
+  void signupGuidance_confirmedBookings_returnsOnlyCallerConflictsAndAllowsBackToBack()
+      throws Exception {
+    UUID booked = fixture(2, 10), overlapping = fixture(2, 10), adjacent = fixture(2, 11);
+    Browser volunteer = login("volunteer"), other = login("other");
+    var result = gql(volunteer, signup(booked, UUID.randomUUID()), Map.of());
+    String registration = result.at("/data/signup/id").asText();
+    assertThat(
+            gql(volunteer, guidance(eventForShift(booked)), Map.of())
+                .at("/data/signupGuidance/0/registrationId")
+                .asText())
+        .isEqualTo(registration);
+    assertThat(
+            gql(volunteer, guidance(eventForShift(overlapping)), Map.of())
+                .at("/data/signupGuidance/0/conflict")
+                .asBoolean())
+        .isTrue();
+    var ownOnly = gql(other, guidance(eventForShift(booked)), Map.of());
+    assertThat(ownOnly.at("/data/signupGuidance/0/registrationId").isNull()).isTrue();
+    assertThat(ownOnly.at("/data/signupGuidance/0/conflict").asBoolean()).isFalse();
+    assertThat(
+            gql(volunteer, guidance(eventForShift(adjacent)), Map.of())
+                .at("/data/signupGuidance/0/conflict")
+                .asBoolean())
+        .isFalse();
+    assertThat(gql(volunteer, signup(overlapping, UUID.randomUUID()), Map.of()).toString())
+        .contains("OVERLAP", "You already have a shift at this time");
+    gql(volunteer, "mutation {cancelRegistration(id:\"" + registration + "\"){id}}", Map.of());
+    assertThat(
+            gql(volunteer, guidance(eventForShift(overlapping)), Map.of())
+                .at("/data/signupGuidance/0/conflict")
+                .asBoolean())
+        .isFalse();
+    assertThat(
+            gql(volunteer, guidance(eventForShift(booked)), Map.of())
+                .at("/data/signupGuidance/0/registrationId")
+                .isNull())
+        .isTrue();
+  }
+
+  @Test
+  void signupGuidance_unavailableEvent_enforcesVisibilityAndOrganizationScope() throws Exception {
+    UUID event = eventForShift(fixture(2, 10));
+    Browser volunteer = login("volunteer");
+    db.update("UPDATE event SET visibility='HIDDEN' WHERE id=?", event);
+    assertThat(gql(volunteer, guidance(event), Map.of()).toString())
+        .contains("FORBIDDEN")
+        .doesNotContain("shiftId");
+    assertThat(gql(volunteer, guidance(UUID.randomUUID()), Map.of()).toString())
+        .contains("NOT_FOUND");
+    assertThatThrownBy(() -> service.signupGuidance(new Actor(OWNER, ORG2, true, false), event))
+        .isInstanceOf(DomainException.class);
+    db.update("UPDATE event SET visibility='PRIVATE',organization_id=? WHERE id=?", ORG2, event);
+    assertThat(gql(volunteer, guidance(event), Map.of()).toString()).contains("FORBIDDEN");
+  }
+
   @Test
   void signup_competingGraphqlRequests_confirmsOnlyOneLastPlace() throws Exception {
     UUID shift = fixture(1, 10);

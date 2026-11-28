@@ -50,6 +50,11 @@ public class StaffingController {
   }
 
   @QueryMapping
+  public List<SignupGuidance> signupGuidance(Principal principal, @Argument UUID eventId) {
+    return service.signupGuidance(access.actor(principal), eventId);
+  }
+
+  @QueryMapping
   public List<RegistrationData> myRegistrations(
       Principal principal, @Argument int first, @Argument int offset) {
     return service.myRegistrations(access.actor(principal), first, offset);

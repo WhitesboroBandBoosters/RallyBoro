@@ -62,6 +62,8 @@ public final class Models {
       int filled,
       int remaining) {}
 
+  public record SignupGuidance(UUID shiftId, UUID registrationId, boolean conflict) {}
+
   public record RegistrationData(
       UUID id, String status, String participantName, EventData event, ShiftData shift) {}
 
