@@ -6,6 +6,10 @@ title: Staffing pilot rules and selected tools
 
 November 27, 2026 · Initiative 2 implementation
 
+## Visual and content direction
+
+Use a maroon-focused palette with neutral surfaces. Keep interface copy direct and functional: headings, labels, instructions, and status/error feedback. Avoid promotional taglines, inspirational slogans, and decorative introductory copy on login or application screens.
+
 ## Interactive client
 
 Select React with strict TypeScript, React Router, Vite, and GraphQL Request. Vue was a viable alternative; React's component ecosystem and typed GraphQL integration fit the small interactive workflow. GraphQL Request is preferred over a normalized-cache client for this pilot because explicit post-mutation refetching is sufficient and avoids another state model. Queries and mutation inputs/results are generated from the checked-in schema and named operations; generated files and bundles are build outputs. Maven installs a pinned local Node runtime, runs locked dependency installation, validates operations, type-checks the client, and packages the same-origin assets. Docker builds the frontend in a separate build stage.

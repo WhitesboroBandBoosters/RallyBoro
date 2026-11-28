@@ -94,7 +94,7 @@ export function EventView() {
         </p>
       )}
       <div className="section-heading">
-        <h2>Find a shift that fits</h2>
+        <h2>Shifts</h2>
         <button onClick={load.refresh}>Refresh availability</button>
       </div>
       {!event.signupOpen && (
@@ -104,13 +104,13 @@ export function EventView() {
         </p>
       )}
       {event.jobs.length === 0 ? (
-        <Empty title="Staffing is taking shape">
+        <Empty title="No shifts yet">
           {event.canManage ? (
             <Link to={"/events/" + id + "/edit"}>
               Add your first job and shift
             </Link>
           ) : (
-            "Your organizer is preparing the available shifts."
+            "No shifts have been added."
           )}
         </Empty>
       ) : (

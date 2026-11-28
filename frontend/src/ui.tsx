@@ -1,4 +1,4 @@
-import {message} from "./api";
+import { message } from "./api";
 import {
   createContext,
   useContext,
@@ -65,7 +65,13 @@ export function useLoad<T>(loader: () => Promise<T>, deps: unknown[]) {
       live = false;
     };
   }, [...deps, version]);
-  return { ...state, refresh: () => { set({loading:true}); bump((v) => v + 1); } };
+  return {
+    ...state,
+    refresh: () => {
+      set({ loading: true });
+      bump((v) => v + 1);
+    },
+  };
 }
 
 export function Loader() {

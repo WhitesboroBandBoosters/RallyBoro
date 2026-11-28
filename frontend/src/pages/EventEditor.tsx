@@ -179,13 +179,7 @@ export function EventEditor() {
       </Link>
       <div className="page-heading">
         <div>
-          <p className="eyebrow">Organizer workspace</p>
           <h1>{event ? "Edit event" : "Create an event"}</h1>
-          <p className="muted">
-            {event
-              ? "Shape the work. Give every volunteer a clear place to help."
-              : "Start with the details. Add your jobs and shifts next."}
-          </p>
         </div>
       </div>
       {error && <Alert>{error}</Alert>}
@@ -250,7 +244,12 @@ export function EventEditor() {
               )}
             </label>
           </div>
-          {scheduled && <p className="small muted">Date and timezone are fixed once shifts are added. Create a new event to reschedule.</p>}
+          {scheduled && (
+            <p className="small muted">
+              Date and timezone are fixed once shifts are added. Create a new
+              event to reschedule.
+            </p>
+          )}
           <label>
             Location
             <input

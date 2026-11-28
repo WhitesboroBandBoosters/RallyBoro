@@ -27,13 +27,7 @@ export function EventList() {
     <>
       <div className="page-heading">
         <div>
-          <p className="eyebrow">Make room for community</p>
           <h1>{organizer ? "Your events" : "Find your next shift"}</h1>
-          <p className="muted">
-            {organizer
-              ? "Plan the work. Bring your people together."
-              : "A little of your time can make a big difference."}
-          </p>
         </div>
         {organizer && (
           <Link className="button primary" to="/events/new">
@@ -50,14 +44,10 @@ export function EventList() {
           <>
             {load.data.events.items.length === 0 ? (
               <Empty
-                title={
-                  organizer
-                    ? "Your first event starts here"
-                    : "No events to show yet"
-                }
+                title={organizer ? "No events yet" : "No events to show yet"}
               >
                 {organizer
-                  ? "Create an event, add jobs and shifts, and invite your community to take part."
+                  ? "Create an event and add jobs and shifts."
                   : "Check back when your organization opens its next event."}
               </Empty>
             ) : (
@@ -81,8 +71,7 @@ export function EventList() {
                         {event.location || "Location to be confirmed"}
                       </p>
                       <p className="card-description">
-                        {event.description ||
-                          "A community event waiting for your helping hands."}
+                        {event.description || "No description provided."}
                       </p>
                       <div className="coverage-label">
                         <span>

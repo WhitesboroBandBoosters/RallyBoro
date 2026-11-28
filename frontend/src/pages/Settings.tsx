@@ -43,7 +43,6 @@ export function Settings() {
     <>
       <div className="page-heading">
         <div>
-          <p className="eyebrow">Your tools, your permissions</p>
           <h1>Agent access</h1>
           <p className="muted">
             Scoped access to the same GraphQL API, without copying browser

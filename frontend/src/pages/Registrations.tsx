@@ -28,9 +28,7 @@ export function Registrations() {
     <>
       <div className="page-heading">
         <div>
-          <p className="eyebrow">Your time makes a difference</p>
           <h1>My registrations</h1>
-          <p className="muted">Your commitments, in one place.</p>
         </div>
       </div>
       {error && <Alert>{error}</Alert>}
@@ -42,8 +40,8 @@ export function Registrations() {
         load.data && (
           <>
             {load.data.myRegistrations.length === 0 ? (
-              <Empty title="Your next good thing is waiting">
-                <Link to="/">Explore your organization’s events</Link>
+              <Empty title="No registrations yet">
+                <Link to="/">View events</Link>
               </Empty>
             ) : (
               load.data.myRegistrations.map((r) => (

@@ -43,7 +43,7 @@ export function App() {
       <div className="workspace">
         <aside className="sidebar">
           <Link className="brand" to="/">
-            RallyBoro<span>●</span>
+            RallyBoro
           </Link>
           <label className="org-picker">
             Organization

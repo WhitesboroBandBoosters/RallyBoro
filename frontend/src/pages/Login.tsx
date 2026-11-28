@@ -46,28 +46,11 @@ export function Login({
   }
   return (
     <main className="login">
-      <section className="login-story">
-        <Link className="brand" to="/">
-          RallyBoro<span>●</span>
-        </Link>
-        <p className="eyebrow">A little time. A big difference.</p>
-        <h1>
-          Good things happen
-          <br />
-          when we show up.
-        </h1>
-        <p>
-          A shared place for community events, volunteer shifts, and the people
-          who make them happen.
-        </p>
-        <div className="story-line">
-          Community-powered. One shift at a time.
-        </div>
-      </section>
       <section className="login-panel">
-        <p className="eyebrow">Your volunteer workspace</p>
-        <h2>Welcome to RallyBoro</h2>
-        <p>Sign in to find your next shift or organize an event.</p>
+        <Link className="brand" to="/">
+          RallyBoro
+        </Link>
+        <h1>Sign in</h1>
         {(error ||
           (sessionError && !sessionError.includes("Please sign in"))) && (
           <Alert>{error || sessionError}</Alert>
@@ -101,7 +84,7 @@ export function Login({
               {busy ? "Signing in…" : "Sign in"}
             </button>
             <p className="muted small">
-              Controlled pilot · accounts are provided by your organizer.
+              Use the account provided by your organizer.
             </p>
           </form>
         )}
