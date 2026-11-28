@@ -8,6 +8,8 @@ The goal is simple, privacy-conscious event coordination: organizations, reusabl
 
 The first two initiatives now provide a controlled volunteer staffing pilot: a React/TypeScript interface, schema-first GraphQL API, organization-scoped event/job/shift management, signup and cancellation, organizer coverage/assignments, and scoped agent tokens. PostgreSQL/JDBC/Flyway and the non-root application container remain the foundation. See [pilot decisions](docs/decisions/003-staffing-pilot.md) for access rules, the local pilot login option, and the still-deferred guest signup, waitlist, approval, template, notification, and contact-sharing features. The pilot currently uses synthetic identities; no phone or email data is collected.
 
+Phase 3 now starts with local username/password accounts and offline recovery keys, self-service organization creation, scoped organization/event permissions, member management, and manually shared invitations. No external identity or email provider is required. See [account/access decisions](docs/decisions/004-local-accounts-and-scoped-access.md) and [phase-3 verification](docs/initiative-3-verification.md). This is the first phase-3 slice; guest participation, contact disclosure, delivery channels, and nearby public-event discovery remain later work.
+
 PostgreSQL deployment and all real credentials are independently managed infrastructure, excluded from project commits. The open-source license remains undecided.
 
 ## Development setup

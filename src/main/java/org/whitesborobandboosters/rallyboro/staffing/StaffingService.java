@@ -86,7 +86,7 @@ public class StaffingService {
   private void visible(Actor actor, Map<String, Object> row) {
     UUID org = uuid(row, "organization_id");
     if (actor.organizationId() != null && !actor.organizationId().equals(org)) Access.denied();
-    boolean manager = access.organizer(actor, org);
+    boolean manager = access.manageEvent(actor, uuid(row, "id"), org);
     if (!manager && !registered(actor, uuid(row, "id"))) {
       String visibility = str(row, "visibility");
       if (visibility.equals("HIDDEN")
@@ -106,7 +106,9 @@ public class StaffingService {
                     new Membership(
                         r.getObject("organization_id", UUID.class),
                         r.getString("name"),
-                        r.getString("role")),
+                        r.getString("role"),
+                        r.getBoolean("can_manage"),
+                        r.getBoolean("can_manage") || r.getBoolean("can_organize")),
                 actor.id())
             .stream()
             .filter(m ->
@@ -119,22 +121,28 @@ public class StaffingService {
     page(first, offset);
     if (!access.member(actor, org)) Access.denied();
     boolean manager = access.organizer(actor, org);
-    String filter = manager ? "" : " AND visibility<>'HIDDEN'";
+    String filter =
+        manager
+            ? ""
+            : " AND (visibility<>'HIDDEN' OR EXISTS (SELECT 1 FROM event_manager g WHERE"
+                  + " g.event_id=event.id AND g.user_id=?))";
     var items =
         db
             .queryForList(
                 "SELECT * FROM event WHERE organization_id=?"
                     + filter
                     + " ORDER BY event_date,id LIMIT ? OFFSET ?",
-                org,
-                first,
-                offset)
+                manager
+                    ? new Object[] {org, first, offset}
+                    : new Object[] {org, actor.id(), first, offset})
             .stream()
             .map(row -> eventData(actor, row))
             .toList();
     int total =
         db.queryForObject(
-            "SELECT count(*) FROM event WHERE organization_id=?" + filter, Integer.class, org);
+            "SELECT count(*) FROM event WHERE organization_id=?" + filter,
+            Integer.class,
+            manager ? new Object[] {org} : new Object[] {org, actor.id()});
     return new EventPage(items, total);
   }
 
@@ -181,7 +189,7 @@ public class StaffingService {
         str(row, "visibility"),
         (Boolean) row.get("signup_open"),
         (Integer) row.get("revision"),
-        access.organizer(actor, uuid(row, "organization_id")),
+        access.manageEvent(actor, uuid(row, "id"), uuid(row, "organization_id")),
         jobs(uuid(row, "id")));
   }
 
@@ -234,7 +242,7 @@ public class StaffingService {
 
   private void editable(Actor actor, UUID id) {
     lockEvent(id);
-    access.requireOrganizer(actor, uuid(eventRow(id), "organization_id"));
+    access.requireEvent(actor, id, uuid(eventRow(id), "organization_id"));
     access.write(actor);
   }
 
@@ -253,7 +261,8 @@ public class StaffingService {
   @Transactional
   public EventData saveEvent(Actor actor, EventInput input) {
     access.write(actor);
-    access.requireOrganizer(actor, input.organizationId());
+    if (input.id() == null) access.requireOrganizer(actor, input.organizationId());
+    else access.requireEvent(actor, input.id(), input.organizationId());
     String title = text(input.title(), 120, true),
         description = text(input.description(), 2000, false),
         location = text(input.location(), 200, false);
@@ -422,7 +431,7 @@ public class StaffingService {
     UUID shiftId = uuid(row, "shift_id"), eventId = eventForShift(shiftId);
     var event = eventRow(eventId);
     if (!uuid(row, "managing_user_id").equals(actor.id()))
-      access.requireOrganizer(actor, uuid(event, "organization_id"));
+      access.requireEvent(actor, eventId, uuid(event, "organization_id"));
     if (actor.organizationId() != null
         && !actor.organizationId().equals(uuid(event, "organization_id"))) Access.denied();
     return new RegistrationData(
@@ -454,7 +463,7 @@ public class StaffingService {
 
   public List<RegistrationData> coverage(Actor actor, UUID event, int first, int offset) {
     page(first, offset);
-    access.requireOrganizer(actor, uuid(eventRow(event), "organization_id"));
+    access.requireEvent(actor, event, uuid(eventRow(event), "organization_id"));
     return db
         .queryForList(
             "SELECT r.id FROM registration r JOIN shift s ON s.id=r.shift_id JOIN job j ON"
@@ -470,13 +479,18 @@ public class StaffingService {
 
   public List<Member> members(Actor actor, UUID org, int first, int offset) {
     page(first, offset);
-    access.requireOrganizer(actor, org);
+    if (!access.memberList(actor, org)) Access.denied();
     return db.query(
-        "SELECT u.*,m.role FROM membership m JOIN app_user u ON u.id=m.user_id WHERE"
-            + " m.organization_id=? ORDER BY u.display_name,u.id LIMIT ? OFFSET ?",
+        "SELECT u.*,m.role,m.can_manage,m.can_organize FROM membership m JOIN app_user u ON"
+            + " u.id=m.user_id WHERE m.organization_id=? ORDER BY u.display_name,u.id LIMIT ?"
+            + " OFFSET ?",
         (r, i) ->
             new Member(
-                r.getObject("id", UUID.class), r.getString("display_name"), r.getString("role")),
+                r.getObject("id", UUID.class),
+                r.getString("display_name"),
+                r.getString("role"),
+                r.getBoolean("can_manage"),
+                r.getBoolean("can_manage") || r.getBoolean("can_organize")),
         org,
         first,
         offset);
@@ -491,7 +505,7 @@ public class StaffingService {
     lockEvent(event);
     var eventRow = eventRow(event);
     UUID org = uuid(eventRow, "organization_id");
-    if (assignment) access.requireOrganizer(actor, org);
+    if (assignment) access.requireEvent(actor, event, org);
     else if (!access.member(actor, org)) Access.denied();
     require(
         db.queryForObject(
@@ -582,7 +596,7 @@ public class StaffingService {
             id);
     UUID event = eventForShift(uuid(row, "shift_id"));
     lockEvent(event);
-    if (manager) access.requireOrganizer(actor, uuid(eventRow(event), "organization_id"));
+    if (manager) access.requireEvent(actor, event, uuid(eventRow(event), "organization_id"));
     else if (!uuid(row, "managing_user_id").equals(actor.id())) Access.denied();
     if (actor.organizationId() != null
         && !actor.organizationId().equals(uuid(eventRow(event), "organization_id")))

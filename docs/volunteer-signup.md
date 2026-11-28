@@ -20,13 +20,27 @@ Planning and signup share an event instance but remain separate sections. Keep p
 - Event templates or a first event provide the starting structure for events in a series, including jobs and shifts. Planning tasks and shifts remain separate.
 - Prevent overlapping confirmed registrations for one person. Eligibility information can also be reviewed by a manager on approval-required shifts; qualification checking is not assumed to be automated. Conflict handling for multiple pending requests remains open.
 - Waitlists are required.
-- Administrators assign event owners. Owners propose reusable changes; only administrators select and approve template updates.
+- Users with the relevant organization/event management permissions assign event owners. Owners propose reusable changes; approval of template updates requires the corresponding management permission. These are scoped authorities, not global account roles; the exact permission breakdown remains to be designed.
 - Template changes never alter an ongoing event. A completed event may become a template after personal and execution-history data is removed.
 - Volunteers may cancel. Cancellation/waitlist notifications must respect deployment notification policy, volunteer preferences, and abuse controls. The earlier notification-free public tier is a possible hosted-offering policy, not a universal product restriction.
 - Public pages show high-level event details and shifts.
 - Calendar integration is requested for Apple Calendar, Microsoft calendars, and Google Calendar, including ICS/iCalendar support (2026-11-09). The delivery method and initial release scope remain open; do not assume two-way synchronization.
 - Future outputs include rosters, unfilled-shift reports, check-in sheets, volunteer hours, printable schedules, CSV exports, and per-event calendar files.
 - Earlier discussions assumed simultaneous operational instances of the same type were not expected. The new series requirement permits multiple occurrences to be created in advance; do not apply the deferred planning model's one-non-completed-instance-per-template restriction to block them. Whether open occurrences may overlap remains to be decided.
+
+## Organization creation and scoped access
+
+Clarified November 28, 2026. Any signed-in user can create an organization and receives management/invitation permissions within it. They can invite others to organize events or participate as volunteers without an installation-wide administrator or operator-created organization. Access to an existing organization/event still requires its applicable grant or participation policy.
+
+Permissions apply to individual organizations and events: the same account can manage one organization, organize a particular event in another, and volunteer elsewhere. Do not treat organizer or volunteer as permanent global user roles. Exact grants, delegation, inheritance, and ownership transfer remain to be designed. See [phase 3](../roadmap/03-broader-participation.md). The current pilot's file-based enrollment and two membership roles remain implementation limitations until this slice is delivered.
+
+## Local public-event discovery
+
+Requested November 28, 2026. People should be able to find local public events by proximity to a location, without already knowing an event link or belonging to its organization. This is a requested capability, not implemented in the current pilot.
+
+Expose discovery consistently through GraphQL and the responsive mobile/desktop UI. Exclude private and hidden events from results and search metadata, including counts and location information. Public discovery does not imply permission to view participant names or contacts, manage an event, or bypass signup requirements. Dedicated pilot events stay private/hidden so they do not enter public discovery.
+
+Design decisions remain open: city/postal code versus address or optional device location; radius and distance units; date filters and ordering; venue coordinates/geocoding; published location precision and user-location handling; whether public-but-unlisted events need a separate discoverability setting; browsing without an account; and current-deployment versus cross-deployment discovery. A map UI, geocoding provider, and persistent user-location tracking are not selected. See [phase-3 discovery planning](../roadmap/03-broader-participation.md#local-public-event-discovery).
 
 ## Mobile and desktop experience, and notifications
 

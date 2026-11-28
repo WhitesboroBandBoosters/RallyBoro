@@ -9,7 +9,7 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: production
       SERVER_SERVLET_SESSION_COOKIE_SECURE: "true"
-      RALLYBORO_PILOT_LOGIN: ${RALLYBORO_PILOT_LOGIN:-false}
+      RALLYBORO_LOCAL_ACCOUNTS: ${RALLYBORO_LOCAL_ACCOUNTS:-true}
       RALLYBORO_ACCOUNTS_FILE: /run/secrets/pilot_accounts
       SPRING_CONFIG_IMPORT: configtree:/run/secrets/
       RALLYBORO_DATABASE_URL: ${RALLYBORO_DATABASE_URL:?Set the JDBC PostgreSQL URL}
@@ -26,7 +26,7 @@ services:
     cap_drop: [ALL]
 secrets:
   pilot_accounts:
-    file: ${RALLYBORO_ACCOUNTS_FILE:?Set the external account enrollment file}
+    file: ${RALLYBORO_ACCOUNTS_FILE:-./config/no-pilot-accounts.properties}
   database_password:
     file: ${RALLYBORO_DATABASE_PASSWORD_FILE:?Set the absolute application password file path}
 networks:

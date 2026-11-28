@@ -7,9 +7,24 @@ type Query {
   myRegistrations(first: Int! = 50, offset: Int! = 0): [Registration!]!
   coverage(eventId: ID!, first: Int! = 100, offset: Int! = 0): [Registration!]!
   members(organizationId: ID!, first: Int! = 50, offset: Int! = 0): [Member!]!
+  invitation(token: String!): Invitation!
+  organizationInvitations(organizationId: ID!, first: Int! = 50, offset: Int! = 0): [Invitation!]!
+  eventManagers(eventId: ID!, first: Int! = 50, offset: Int! = 0): [Member!]!
+  organizationAudit(organizationId: ID!, first: Int! = 50, offset: Int! = 0): [AccessAudit!]!
   agentTokens: [AgentToken!]!
 }
 type Mutation {
+  registerAccount(username: String!, displayName: String!, password: String!): AccountCreated!
+  recoverAccount(username: String!, recoveryKey: String!, newPassword: String!): String!
+  rotateRecoveryKey(currentPassword: String!): String!
+  changePassword(currentPassword: String!, newPassword: String!): Boolean!
+  createOrganization(name: String!): Organization!
+  createInvitation(organizationId: ID!, canManage: Boolean! = false, canOrganize: Boolean! = false, eventId: ID): InvitationGrant!
+  acceptInvitation(token: String!): Organization!
+  revokeInvitation(organizationId: ID!, id: ID!): Boolean!
+  setMembershipPermissions(organizationId: ID!, userId: ID!, canManage: Boolean!, canOrganize: Boolean!): Boolean!
+  removeMember(organizationId: ID!, userId: ID!): Boolean!
+  setEventManager(eventId: ID!, userId: ID!, enabled: Boolean!): Boolean!
   saveEvent(input: EventInput!): Event!
   saveJob(input: JobInput!): Job!
   saveShift(input: ShiftInput!): Shift!
@@ -22,7 +37,7 @@ type Mutation {
 }
 type AppInfo { name: String!, stage: String! }
 type Viewer { id: ID!, displayName: String!, memberships: [Membership!]! }
-type Membership { organizationId: ID!, organizationName: String!, role: Role! }
+type Membership { organizationId: ID!, organizationName: String!, role: Role! @deprecated(reason: "Use scoped canManage/canOrganize permissions."), canManage: Boolean!, canOrganize: Boolean! }
 enum Role { ORGANIZER VOLUNTEER }
 enum Visibility { HIDDEN PRIVATE PUBLIC }
 enum RegistrationStatus { CONFIRMED CANCELLED }
@@ -36,7 +51,7 @@ type Shift { id: ID!, jobId: ID!, startsAt: String!, endsAt: String!, capacity: 
 "Personal booking and time-conflict guidance; authoritative checks still run at signup."
 type SignupGuidance { shiftId: ID!, registrationId: ID, conflict: Boolean! }
 type Registration { id: ID!, status: RegistrationStatus!, participantName: String!, event: Event!, shift: Shift! }
-type Member { id: ID!, displayName: String!, role: Role! }
+type Member { id: ID!, displayName: String!, role: Role! @deprecated(reason: "Use scoped canManage/canOrganize permissions."), canManage: Boolean!, canOrganize: Boolean! }
 type AgentToken { id: ID!, name: String!, organizationId: ID!, writeEnabled: Boolean!, expiresAt: String!, revoked: Boolean! }
 type TokenGrant { token: String!, details: AgentToken! }
 input EventInput {
@@ -45,3 +60,9 @@ input EventInput {
 }
 input JobInput { id: ID, eventId: ID!, name: String!, description: String!, eligibility: String! }
 input ShiftInput { id: ID, jobId: ID!, startsAt: String!, endsAt: String!, capacity: Int! }
+
+type AccountCreated { id: ID!, recoveryKey: String! }
+type Organization { id: ID!, name: String! }
+type Invitation { id: ID!, organizationId: ID!, organizationName: String!, canManage: Boolean!, canOrganize: Boolean!, eventId: ID, expiresAt: String!, status: String! }
+type InvitationGrant { token: String!, invitation: Invitation! }
+type AccessAudit { id: ID!, actorName: String!, action: String!, targetId: ID, createdAt: String! }

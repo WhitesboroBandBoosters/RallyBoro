@@ -12,7 +12,7 @@ type Membership = Viewer["memberships"][number];
 export const Session = createContext<{
   viewer: Viewer;
   organization: Membership;
-  reload: () => void;
+  reload: (organizationId?: string) => void;
 } | null>(null);
 export function useSession() {
   const session = useContext(Session);

@@ -6,6 +6,8 @@ title: Staffing pilot rules and selected tools
 
 November 27, 2026 · Initiative 2 implementation
 
+This records the phase-2 pilot. [Decision 004](004-local-accounts-and-scoped-access.md) supersedes its file-based login/enrollment and coarse membership-role model for the first phase-3 slice, while preserving the staffing invariants and existing history.
+
 ## Visual and content direction
 
 Use a maroon-focused palette with neutral surfaces. Keep interface copy direct and functional: headings, labels, instructions, and status/error feedback. Avoid promotional taglines, inspirational slogans, and decorative introductory copy on login or application screens.

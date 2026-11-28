@@ -1,5 +1,12 @@
 import { useState } from "react";
-import { Link, NavLink, Navigate, Route, Routes } from "react-router-dom";
+import {
+  Link,
+  NavLink,
+  Navigate,
+  Route,
+  Routes,
+  useNavigate,
+} from "react-router-dom";
 import { client, csrf } from "./api";
 import * as G from "./generated";
 import { Session, useLoad, Loader, Empty } from "./ui";
@@ -9,7 +16,12 @@ import { Registrations } from "./pages/Registrations";
 import { EventEditor } from "./pages/EventEditor";
 import { Settings } from "./pages/Settings";
 import { Login } from "./pages/Login";
+import { CreateOrganization } from "./pages/Onboarding";
+import { Invite } from "./pages/Invite";
+import { Organization } from "./pages/Organization";
+import { Account } from "./pages/Account";
 export function App() {
+  const navigate = useNavigate();
   const [version, bump] = useState(0);
   const [selected, setSelected] = useState("");
   const session = useLoad(() => client.request(G.ViewerDocument), [version]);
@@ -22,12 +34,6 @@ export function App() {
   const organization =
     viewer.memberships.find((m) => m.organizationId === selected) ??
     viewer.memberships[0];
-  if (!organization)
-    return (
-      <Empty title="You’re signed in">
-        An organizer needs to enroll this account in an organization.
-      </Empty>
-    );
   async function logout() {
     const token = await csrf();
     await fetch("/auth/logout", {
@@ -36,9 +42,64 @@ export function App() {
     });
     bump((v) => v + 1);
   }
+  function joined(id: string) {
+    setSelected(id);
+    navigate("/", { replace: true });
+    bump((v) => v + 1);
+  }
+  if (!organization)
+    return (
+      <main className="onboarding content">
+        <div className="onboarding-header">
+          <Link className="brand" to="/">
+            RallyBoro
+          </Link>
+          <div className="action-row">
+            <Link className="button" to="/my-registrations">
+              My registrations
+            </Link>
+            <Link className="button" to="/account">
+              Account
+            </Link>
+            <button onClick={logout}>Sign out</button>
+          </div>
+        </div>
+        <Routes>
+          <Route path="/events/:id" element={<EventView />} />
+          <Route path="/my-registrations" element={<Registrations />} />
+          <Route
+            path="/invite/:token"
+            element={<Invite onAccepted={joined} />}
+          />
+          <Route
+            path="/account"
+            element={<Account onChanged={() => bump((v) => v + 1)} />}
+          />
+          <Route
+            path="*"
+            element={
+              <>
+                <CreateOrganization onCreated={joined} />
+                <p className="muted">
+                  To join an existing organization, open the invitation link
+                  shared with you.
+                </p>
+              </>
+            }
+          />
+        </Routes>
+      </main>
+    );
   return (
     <Session.Provider
-      value={{ viewer, organization, reload: () => bump((v) => v + 1) }}
+      value={{
+        viewer,
+        organization,
+        reload: (id) => {
+          if (id) setSelected(id);
+          bump((v) => v + 1);
+        },
+      }}
     >
       <div className="workspace">
         <aside className="sidebar">
@@ -51,7 +112,10 @@ export function App() {
               <select
                 aria-label="Organization"
                 value={organization.organizationId}
-                onChange={(e) => setSelected(e.target.value)}
+                onChange={(e) => {
+                  setSelected(e.target.value);
+                  navigate("/");
+                }}
               >
                 {viewer.memberships.map((m) => (
                   <option key={m.organizationId} value={m.organizationId}>
@@ -70,16 +134,33 @@ export function App() {
             <NavLink to="/my-registrations">
               <span aria-hidden="true">✓</span> My registrations
             </NavLink>
+            {organization.canManage && (
+              <NavLink to="/organizations">Organization</NavLink>
+            )}
           </nav>
           <details className="account-menu">
             <summary>Account</summary>
             <div className="account-panel">
               <strong>{viewer.displayName}</strong>
               <small>
-                {organization.role === "ORGANIZER"
-                  ? "Event organizer"
-                  : "Volunteer"}
+                {organization.canOrganize ? "Event organizer" : "Volunteer"}
               </small>
+              <Link
+                to="/organizations/new"
+                onClick={(e) =>
+                  e.currentTarget.closest("details")?.removeAttribute("open")
+                }
+              >
+                Create organization
+              </Link>
+              <Link
+                to="/account"
+                onClick={(e) =>
+                  e.currentTarget.closest("details")?.removeAttribute("open")
+                }
+              >
+                Account settings
+              </Link>
               <Link
                 to="/settings"
                 onClick={(e) =>
@@ -102,6 +183,22 @@ export function App() {
             <Route path="/events/:id/edit" element={<EventEditor />} />
             <Route path="/my-registrations" element={<Registrations />} />
             <Route path="/settings" element={<Settings />} />
+            <Route
+              path="/account"
+              element={<Account onChanged={() => bump((v) => v + 1)} />}
+            />
+            <Route
+              path="/organizations"
+              element={<Organization key={organization.organizationId} />}
+            />
+            <Route
+              path="/organizations/new"
+              element={<CreateOrganization onCreated={joined} />}
+            />
+            <Route
+              path="/invite/:token"
+              element={<Invite onAccepted={joined} />}
+            />
             <Route
               path="*"
               element={

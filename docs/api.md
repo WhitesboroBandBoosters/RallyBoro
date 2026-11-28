@@ -8,7 +8,7 @@ The staffing API is schema-first GraphQL at **POST `/graphql`**, shared by brows
 
 ## Authentication
 
-Browser clients sign in through configured Spring Security OIDC or the explicitly enabled controlled-pilot password login. Fetch `GET /auth/csrf` with same-origin credentials, then send its returned header name/token on login, logout, and GraphQL POST requests. Refetch the token after login/logout; sessions rotate. Never copy browser session cookies into agents. `GET /auth/options` reports enabled login options without credentials.
+Browser clients sign in through Spring Security local username/password login or optional configured OIDC. Local accounts and organization creation require no external provider or enrollment file. Fetch `GET /auth/csrf` with same-origin credentials, then send its returned header name/token on login, logout, and GraphQL POST requests. Refetch the token after login/logout; sessions rotate. Never copy browser session cookies into agents. `GET /auth/options` reports enabled login options without credentials.
 
 An authenticated browser user can create a scoped seven-day agent token under Account → Agent access. Supply it as `Authorization: Bearer <token>` in an HTTPS GraphQL request; no cookie/CSRF token is required for a valid bearer credential. Tokens have organization and read/write scope, can be revoked, and cannot exceed the owner's permissions. Store the token privately and keep it out of command-line history, logs, and shared files.
 
@@ -16,12 +16,22 @@ An authenticated browser user can create a scoped seven-day agent token under Ac
 
 | Area | Operations |
 | --- | --- |
+| Local accounts | `registerAccount`, `recoverAccount` (signed out), `changePassword`, `rotateRecoveryKey` (browser session) |
+| Organizations | `createOrganization`, `setMembershipPermissions`, `removeMember` (browser session) |
+| Invitations | `createInvitation`, `invitation`, `acceptInvitation`, `organizationInvitations`, `revokeInvitation` (browser session) |
+| Scoped event access | `eventManagers`, `setEventManager`, `organizationAudit` (organization manager browser session) |
 | Discovery | `appInfo` (non-sensitive), `viewer` (own identity and memberships) |
 | Events | `events`, `event`, `saveEvent` |
 | Staffing structure | `saveJob`, `saveShift` |
 | Participation | `signupGuidance`, `signup`, `myRegistrations`, `cancelRegistration` |
 | Organizer management | `members`, `coverage`, `assignVolunteer`, `removeAssignment` |
 | Agent credentials | `agentTokens`, `createAgentToken`, `revokeAgentToken` (browser session only) |
+
+Account creation returns a stable user ID and one-time recovery key; it does not create membership or sign the browser in. Password/recovery mutations use GraphQL variables over HTTPS with CSRF and must not be logged. Recovery/key replacement return a new one-time secret, never the stored hash. Password reset/change invalidate existing local-password sessions and revoke agent tokens. These operations are not an OAuth password grant.
+
+`viewer.memberships` and `members` expose scoped `canManage` and `canOrganize` capabilities; legacy `role` is deprecated. Organization management implies all-event management; `Event.canManage` additionally reflects an individual event grant. A user can have different permissions in each context. Organization/member/invitation administration is browser-session-only in this slice. Scoped agent tokens continue to support authorized staffing operations and are bounded by their owner's current membership and event permissions; no permission comes from merely signing in. Account-free public participation is not yet enabled.
+
+An invitation's `token` is returned once on creation, while listing returns metadata only. Signed-in preview shows the organization/scope before explicit acceptance. Tokens expire after seven days, are single-use, can be revoked, and depend on the issuer retaining management permission. Retrying acceptance as the same still-enrolled user is idempotent; another user or a removed member cannot reuse the link. List operations accept bounded `first`/`offset`. Access audit responses contain actions/actors/target IDs and no credential or invitation secret.
 
 For example, an authenticated client can request its authorized organization identifiers:
 

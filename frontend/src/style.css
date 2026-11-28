@@ -713,3 +713,46 @@ button:focus-visible {
     font-size: 0.8rem;
   }
 }
+
+.login-actions,
+.action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-top: 1rem;
+}
+.login-actions button {
+  flex: 1;
+}
+.onboarding {
+  max-width: 900px;
+  margin: 0 auto;
+  padding-top: 1.5rem;
+}
+.onboarding-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+.onboarding-header .action-row {
+  margin: 0;
+}
+.member-row {
+  padding: 1rem 0;
+  border-top: 1px solid #f5eef1;
+  overflow-wrap: anywhere;
+}
+.member-row p {
+  margin-bottom: 0;
+}
+@media (max-width: 700px) {
+  .onboarding {
+    padding-top: 1rem;
+  }
+  .account-panel {
+    max-height: 65vh;
+    overflow-y: auto;
+  }
+}

@@ -2,7 +2,7 @@ fragment Slot on Shift {id jobId startsAt endsAt capacity filled remaining}
 fragment JobFields on Job {id eventId name description eligibility shifts {...Slot}}
 fragment EventFields on Event {id organizationId title description location eventDate timezone visibility signupOpen revision canManage jobs {...JobFields}}
 fragment RegistrationFields on Registration {id status participantName event {...EventFields} shift {...Slot}}
-query Viewer {viewer {id displayName memberships {organizationId organizationName role}}}
+query Viewer {viewer {id displayName memberships {organizationId organizationName canManage canOrganize}}}
 query Events($organizationId:ID!,$offset:Int!) {events(organizationId:$organizationId,first:12,offset:$offset){total items {...EventFields}}}
 query Event($id:ID!) {event(id:$id) {...EventFields} signupGuidance(eventId:$id) {shiftId registrationId conflict}}
 query Registrations($offset:Int!) {myRegistrations(first:25,offset:$offset) {...RegistrationFields}}
@@ -18,3 +18,22 @@ mutation Assign($shiftId:ID!,$userId:ID!,$requestId:ID!) {assignVolunteer(shiftI
 mutation Remove($id:ID!) {removeAssignment(id:$id) {id status}}
 mutation CreateToken($organizationId:ID!,$name:String!,$writeEnabled:Boolean!) {createAgentToken(organizationId:$organizationId,name:$name,writeEnabled:$writeEnabled){token details {id expiresAt}}}
 mutation Revoke($id:ID!) {revokeAgentToken(id:$id)}
+mutation RegisterAccount($username:String!,$displayName:String!,$password:String!) {registerAccount(username:$username,displayName:$displayName,password:$password){id recoveryKey}}
+mutation RecoverAccount($username:String!,$recoveryKey:String!,$newPassword:String!) {recoverAccount(username:$username,recoveryKey:$recoveryKey,newPassword:$newPassword)}
+mutation ChangePassword($currentPassword:String!,$newPassword:String!) {changePassword(currentPassword:$currentPassword,newPassword:$newPassword)}
+mutation CreateOrganization($name:String!) {createOrganization(name:$name){id name}}
+fragment InvitationFields on Invitation {id organizationId organizationName canManage canOrganize eventId expiresAt status}
+query Invitation($token:String!) {invitation(token:$token){...InvitationFields}}
+query OrganizationInvitations($organizationId:ID!,$offset:Int!) {organizationInvitations(organizationId:$organizationId,first:25,offset:$offset){...InvitationFields}}
+mutation CreateInvitation($organizationId:ID!,$canManage:Boolean!,$canOrganize:Boolean!,$eventId:ID) {createInvitation(organizationId:$organizationId,canManage:$canManage,canOrganize:$canOrganize,eventId:$eventId){token invitation{...InvitationFields}}}
+mutation AcceptInvitation($token:String!) {acceptInvitation(token:$token){id name}}
+mutation RevokeInvitation($organizationId:ID!,$id:ID!) {revokeInvitation(organizationId:$organizationId,id:$id)}
+query OrganizationMembers($organizationId:ID!,$offset:Int!) {members(organizationId:$organizationId,first:25,offset:$offset){id displayName canManage canOrganize}}
+mutation SetPermissions($organizationId:ID!,$userId:ID!,$canManage:Boolean!,$canOrganize:Boolean!) {setMembershipPermissions(organizationId:$organizationId,userId:$userId,canManage:$canManage,canOrganize:$canOrganize)}
+mutation RemoveMember($organizationId:ID!,$userId:ID!) {removeMember(organizationId:$organizationId,userId:$userId)}
+query EventManagers($eventId:ID!,$offset:Int!) {eventManagers(eventId:$eventId,first:25,offset:$offset){id displayName}}
+mutation SetEventManager($eventId:ID!,$userId:ID!,$enabled:Boolean!) {setEventManager(eventId:$eventId,userId:$userId,enabled:$enabled)}
+query OrganizationAudit($organizationId:ID!,$offset:Int!) {organizationAudit(organizationId:$organizationId,first:25,offset:$offset){id actorName action targetId createdAt}}
+query OrganizationEvents($organizationId:ID!,$offset:Int!) {events(organizationId:$organizationId,first:25,offset:$offset){total items{id title}}}
+
+mutation RotateRecoveryKey($currentPassword:String!) {rotateRecoveryKey(currentPassword:$currentPassword)}

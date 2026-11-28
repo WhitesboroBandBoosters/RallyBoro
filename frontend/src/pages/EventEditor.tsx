@@ -105,7 +105,7 @@ export function EventEditor() {
   }
   if (load.loading) return <Loader />;
   if (load.error) return <LoadError error={load.error} retry={load.refresh} />;
-  if (organization.role !== "ORGANIZER" || (event && !event.canManage))
+  if (event ? !event.canManage : !organization.canOrganize)
     return <Alert>Organizer access is required.</Alert>;
   const assigned = event?.jobs.some((j) => j.shifts.some((s) => s.filled > 0));
   const scheduled = event?.jobs.some((job) => job.shifts.length > 0);
@@ -267,9 +267,7 @@ export function EventEditor() {
               >
                 <option value="HIDDEN">Hidden — organizers only</option>
                 <option value="PRIVATE">Private — organization members</option>
-                <option value="PUBLIC">
-                  Public — signed-in pilot link viewers
-                </option>
+                <option value="PUBLIC">Public — signed-in link viewers</option>
               </select>
             </label>
             {event && (

@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, useContext } from "react";
 import { Link, useParams } from "react-router-dom";
 import { client, message, errorCode } from "../api";
 import {
   Alert,
+  Session,
   Empty,
   useLoad,
   Loader,
@@ -15,6 +16,7 @@ import * as G from "../generated";
 import { Coverage } from "./Coverage";
 export function EventView() {
   const { id = "" } = useParams();
+  const session = useContext(Session);
   const load = useLoad(() => client.request(G.EventDocument, { id }), [id]);
   const [error, setError] = useState("");
   const [overlapError, setOverlapError] = useState(false);
@@ -60,6 +62,9 @@ export function EventView() {
   const event = load.data.event;
   const guidance = new Map(
     load.data.signupGuidance.map((item) => [item.shiftId, item]),
+  );
+  const canParticipate = !!session?.viewer.memberships.some(
+    (m) => m.organizationId === event.organizationId,
   );
   const shifts = event.jobs.flatMap((j) => j.shifts);
   const cap = shifts.reduce((a, s) => a + s.capacity, 0),
@@ -119,6 +124,12 @@ export function EventView() {
         <h2>Shifts</h2>
         <button onClick={load.refresh}>Refresh availability</button>
       </div>
+      {!canParticipate && (
+        <p className="info">
+          Organization membership is required to sign up for this event. You can
+          still manage your existing registrations.
+        </p>
+      )}
       {!event.signupOpen && (
         <p className="info">
           Signup is currently closed. Your existing commitments remain in My
@@ -184,6 +195,7 @@ export function EventView() {
                         : undefined
                     }
                     disabled={
+                      !canParticipate ||
                       !event.signupOpen ||
                       shift.remaining === 0 ||
                       !!busy ||

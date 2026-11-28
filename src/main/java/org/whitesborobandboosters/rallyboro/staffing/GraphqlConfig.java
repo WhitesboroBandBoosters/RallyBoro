@@ -33,6 +33,12 @@ public class GraphqlConfig {
     return (request, chain) -> {
       if (request.getDocument().length() > 32000)
         return Mono.error(new IllegalArgumentException("Operation exceeds size limit"));
+      String address =
+          request.getRemoteAddress() == null
+              ? "unknown"
+              : request.getRemoteAddress().getAddress().getHostAddress();
+      request.configureExecutionInput((input, builder) ->
+          builder.graphQLContext(context -> context.put("clientAddress", address)).build());
       return chain.next(request).timeout(Duration.ofSeconds(10));
     };
   }

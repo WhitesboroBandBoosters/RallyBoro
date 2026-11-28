@@ -16,7 +16,7 @@ Small nonprofits and community groups need to organize staffing without expensiv
 
 The intended experience is useful on its own for one event, supports organizations running related events, and retains reusable structure and history over time. The source will be open, and people must be able to move their data between independently operated deployments.
 
-Primary participants are volunteers, people registering on behalf of others, event organizers, organization managers/members, and deployment operators. Automated clients and agents are also supported clients, subject to the same permissions and privacy rules as people. Exact role names and permissions remain to be defined for the signup product.
+Primary participants are volunteers, people registering on behalf of others, event organizers, organization managers/members, and deployment operators. Automated clients and agents are also supported clients, subject to the same permissions and privacy rules as people. Any signed-in user can create an organization; permissions then apply to each organization/event rather than to a global user role. Organization creation does not require operator bootstrap. Exact permission grants and delegation rules remain to be defined for the signup product.
 
 ## 2. Project principles
 
@@ -69,11 +69,14 @@ For example, a group could establish a recurring food-distribution series from a
 
 The following captures product direction. Delivery boundaries are still being negotiated.
 
+The first phase-3 implementation slice adds local username/password accounts and offline recovery without an external provider, stable account IDs with separate identity mappings for later OIDC linking, self-service organizations, scoped permissions, and shareable invitations. See [decision 004](decisions/004-local-accounts-and-scoped-access.md). Guest participation, dependent management, contact disclosure, proximity discovery, and delivery channels remain separate follow-ups.
+
 | Area | Requested support | Decisions still needed |
 | --- | --- | --- |
 | Event creation and sharing | Public/private events; share links/QR codes and organization-context sharing, independent of payment. | Meaning of private access and sharing permissions. |
+| Local public-event discovery | Search for public events by proximity to a location on mobile, desktop, and through the API. Private/hidden events remain excluded. | Location input, radius/units, dates/order, venue coordinates/geocoding, location privacy, public versus unlisted discovery, browsing authentication, deployment scope, and release boundary. |
 | Optional event credits | Internal deployments without payments; optional credits for hosts that charge; host-defined rates and bring-your-own payment processors. | Credit grants/purchases, ownership, consumption point, occurrence versus series rules, refunds, and processor interface. |
-| Organization access | Membership, invitations, and organization-context event creation. | Invitation authority, role scope, event ownership, and personal versus organization ownership. |
+| Organization access | Any signed-in user can create an organization and manage/invite within it; organization/event-scoped permissions, membership, and event creation. No organization bootstrap is required. | Exact grants, delegation/inheritance, ownership transfer, event ownership, and personal versus organization ownership. |
 | Staffing | Jobs, shifts, capacities, signup/cancellation, organizer assignment/removal, overlap prevention, waitlists, and approval-required shifts. Pending requests do not reserve places; pending counts are visible. | Qualification review, reviewer permissions, capacity at approval, waitlist interaction, conflict overrides, and changes after signup. |
 | Volunteer access | Public-link participation without a required account, optional sign-in, and registering others. Proposed phone sharing can be voluntary or required by an event, with optional remembered organizer permission. | Verification, secure return access, group capacity, consent scope/revocation, recipient changes, and guardian/dependent contact handling. |
 | Templates and series | Create related occurrences from a template or first event; add later occurrences and customize each independently. | Baseline/version updates, date/time adjustment, and series-wide controls. |

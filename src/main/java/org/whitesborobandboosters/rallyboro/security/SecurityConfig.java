@@ -28,6 +28,7 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.csrf.CsrfFilter;
 import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler;
+import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -61,7 +62,7 @@ public class SecurityConfig {
       HttpSecurity http,
       JdbcTemplate jdbc,
       RequestGuard guard,
-      @Value("${rallyboro.pilot-login:false}") boolean local,
+      @Value("${rallyboro.local-accounts:true}") boolean local,
       ObjectProvider<ClientRegistrationRepository> registrations)
       throws Exception {
     http.authorizeHttpRequests(a ->
@@ -78,6 +79,9 @@ public class SecurityConfig {
                 "/events/**",
                 "/my-registrations",
                 "/settings",
+                "/organizations/**",
+                "/invite/**",
+                "/account",
                 "/assets/**",
                 "/index.html",
                 "/styles.css",
@@ -142,11 +146,12 @@ public class SecurityConfig {
         l -> l.logoutUrl("/auth/logout").logoutSuccessHandler((r, s, a) -> s.setStatus(204)));
     http.exceptionHandling(e -> e.authenticationEntryPoint((r, s, x) -> s.sendError(401)));
     http.headers(h ->
-        h.contentSecurityPolicy(c ->
-            c.policyDirectives(
-                "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:;"
-                    + " connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action"
-                    + " 'self'")));
+        h.referrerPolicy(r -> r.policy(ReferrerPolicyHeaderWriter.ReferrerPolicy.NO_REFERRER))
+            .contentSecurityPolicy(c ->
+                c.policyDirectives(
+                    "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:;"
+                        + " connect-src 'self'; frame-ancestors 'none'; base-uri 'self';"
+                        + " form-action 'self'")));
     return http.build();
   }
 
@@ -156,7 +161,7 @@ public class SecurityConfig {
     private final ObjectProvider<ClientRegistrationRepository> registrations;
 
     AuthSupport(
-        @Value("${rallyboro.pilot-login:false}") boolean local,
+        @Value("${rallyboro.local-accounts:true}") boolean local,
         ObjectProvider<ClientRegistrationRepository> registrations) {
       this.local = local;
       this.registrations = registrations;
