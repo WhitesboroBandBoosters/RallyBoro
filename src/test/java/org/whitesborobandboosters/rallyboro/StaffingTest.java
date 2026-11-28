@@ -16,6 +16,8 @@ import java.util.UUID;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -436,9 +438,9 @@ class StaffingTest {
     Browser browser = login("volunteer");
     String aliases =
         "{ "
-            + java.util.stream.IntStream.range(0, 1100)
+            + IntStream.range(0, 1100)
                 .mapToObj(i -> "a" + i + ":appInfo{name}")
-                .collect(java.util.stream.Collectors.joining(" "))
+                .collect(Collectors.joining(" "))
             + " }";
     assertThat(gql(browser, aliases, Map.of()).toString()).contains("errors");
     HttpClient anonymousClient = HttpClient.newBuilder().cookieHandler(new CookieManager()).build();
