@@ -10,7 +10,7 @@ Accepted for initiative 1 · November 27, 2026
 
 ## Application and interface
 
-Use Java 25 and Spring Boot 4.2.0 as already established. Use Spring MVC and Thymeleaf for the first responsive interface, backed by an application-owned JSON API. Compared with a React/TypeScript SPA, this keeps the first runnable slice in familiar Java, HTML, and CSS without a second build toolchain. UI controllers may render pages, but future business operations must live in shared application services used by API and UI. An interactive client is now required for initiative 2; its framework remains to be selected (decision 002).
+Use Java 25 and Spring Boot 4.2.0 as already established. Use Spring MVC and Thymeleaf for the first responsive interface, backed by an application-owned JSON API. Compared with a React/TypeScript SPA, this keeps the first runnable slice in familiar Java, HTML, and CSS without a second build toolchain. UI controllers may render pages, but future business operations must live in shared application services used by API and UI. An interactive client is now required for initiative 2; React/TypeScript is selected in decision 003.
 
 Use JDBC and explicit SQL rather than introducing an ORM for the tiny foundation schema. PostgreSQL is the selected database. Use Flyway SQL migrations instead of ad hoc startup DDL; compared with Liquibase, SQL migrations add less machinery for this PostgreSQL-first prototype. Never edit an applied migration; add a new version. Flyway clean is disabled.
 

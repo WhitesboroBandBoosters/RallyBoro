@@ -1,0 +1,20 @@
+fragment Slot on Shift {id jobId startsAt endsAt capacity filled remaining}
+fragment JobFields on Job {id eventId name description eligibility shifts {...Slot}}
+fragment EventFields on Event {id organizationId title description location eventDate timezone visibility signupOpen revision canManage jobs {...JobFields}}
+fragment RegistrationFields on Registration {id status participantName event {...EventFields} shift {...Slot}}
+query Viewer {viewer {id displayName memberships {organizationId organizationName role}}}
+query Events($organizationId:ID!,$offset:Int!) {events(organizationId:$organizationId,first:12,offset:$offset){total items {...EventFields}}}
+query Event($id:ID!) {event(id:$id) {...EventFields}}
+query Registrations($offset:Int!) {myRegistrations(first:25,offset:$offset) {...RegistrationFields}}
+query Coverage($eventId:ID!,$offset:Int!) {coverage(eventId:$eventId,first:50,offset:$offset) {...RegistrationFields}}
+query Members($organizationId:ID!) {members(organizationId:$organizationId,first:100,offset:0){id displayName role}}
+query Tokens {agentTokens {id name organizationId writeEnabled expiresAt revoked}}
+mutation SaveEvent($input:EventInput!) {saveEvent(input:$input) {...EventFields}}
+mutation SaveJob($input:JobInput!) {saveJob(input:$input) {...JobFields}}
+mutation SaveShift($input:ShiftInput!) {saveShift(input:$input) {...Slot}}
+mutation Signup($shiftId:ID!,$requestId:ID!) {signup(shiftId:$shiftId,requestId:$requestId) {id status}}
+mutation Cancel($id:ID!) {cancelRegistration(id:$id) {id status}}
+mutation Assign($shiftId:ID!,$userId:ID!,$requestId:ID!) {assignVolunteer(shiftId:$shiftId,userId:$userId,requestId:$requestId) {id status}}
+mutation Remove($id:ID!) {removeAssignment(id:$id) {id status}}
+mutation CreateToken($organizationId:ID!,$name:String!,$writeEnabled:Boolean!) {createAgentToken(organizationId:$organizationId,name:$name,writeEnabled:$writeEnabled){token details {id expiresAt}}}
+mutation Revoke($id:ID!) {revokeAgentToken(id:$id)}

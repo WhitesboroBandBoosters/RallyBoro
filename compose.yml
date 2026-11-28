@@ -2,24 +2,31 @@ name: rallyboro-app
 services:
   app:
     build: .
-    image: rallyboro:foundation
+    image: rallyboro:pilot
     restart: unless-stopped
     ports:
       - "127.0.0.1:8088:8080"
     environment:
       SPRING_PROFILES_ACTIVE: production
+      SERVER_SERVLET_SESSION_COOKIE_SECURE: "true"
+      RALLYBORO_PILOT_LOGIN: ${RALLYBORO_PILOT_LOGIN:-false}
+      RALLYBORO_ACCOUNTS_FILE: /run/secrets/pilot_accounts
       SPRING_CONFIG_IMPORT: configtree:/run/secrets/
       RALLYBORO_DATABASE_URL: ${RALLYBORO_DATABASE_URL:?Set the JDBC PostgreSQL URL}
       RALLYBORO_DATABASE_USERNAME: ${RALLYBORO_DATABASE_USERNAME:?Set the application database role}
     secrets:
       - source: database_password
         target: RALLYBORO_DATABASE_PASSWORD
+      - source: pilot_accounts
+        target: pilot_accounts
     networks:
       - database
     security_opt:
       - no-new-privileges:true
     cap_drop: [ALL]
 secrets:
+  pilot_accounts:
+    file: ${RALLYBORO_ACCOUNTS_FILE:?Set the external account enrollment file}
   database_password:
     file: ${RALLYBORO_DATABASE_PASSWORD_FILE:?Set the absolute application password file path}
 networks:

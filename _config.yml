@@ -28,3 +28,4 @@ exclude:
   - Dockerfile
   - compose.yml
   - .dockerignore
+  - frontend

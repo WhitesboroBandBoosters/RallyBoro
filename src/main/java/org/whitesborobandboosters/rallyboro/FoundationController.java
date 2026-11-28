@@ -6,16 +6,24 @@ import org.springframework.web.bind.annotation.ResponseBody;
 
 @Controller
 public class FoundationController {
-    @GetMapping("/")
-    public String home() {
-        return "home";
-    }
+  @GetMapping({
+    "/",
+    "/login",
+    "/events",
+    "/events/{id}",
+    "/events/{id}/edit",
+    "/my-registrations",
+    "/settings"
+  })
+  public String home() {
+    return "forward:/index.html";
+  }
 
-    @GetMapping("/api/v1/status")
-    @ResponseBody
-    public ApplicationStatus status() {
-        return new ApplicationStatus("RallyBoro", "foundation");
-    }
+  @GetMapping("/api/v1/status")
+  @ResponseBody
+  public ApplicationStatus status() {
+    return new ApplicationStatus("RallyBoro", "staffing-pilot");
+  }
 
-    public record ApplicationStatus(String name, String stage) { }
+  public record ApplicationStatus(String name, String stage) {}
 }

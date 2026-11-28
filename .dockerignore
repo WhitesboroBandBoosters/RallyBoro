@@ -6,3 +6,11 @@
 !src/
 !src/**
 !Dockerfile
+!frontend/
+!frontend/**
+frontend/node_modules/
+frontend/dist/
+frontend/src/generated.ts
+frontend/test-results/
+frontend/playwright-report/
+frontend/.env*

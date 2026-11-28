@@ -117,7 +117,7 @@ Committee tasks, comments, planning sections, and reviewed template improvements
 
 ## 7. Broad architecture
 
-**Prototype direction: Java and Spring Boot, self-hosted on the maintainer's infrastructure with access through Tailscale.** This reflects the maintainer's strong familiarity with Java and Spring Boot. The build foundation targets Java 25 with Spring Boot 4.2.0 dependency management and Maven 3.10.1 through a checked-in Maven Wrapper. PostgreSQL, JDBC/Flyway, a temporary responsive Thymeleaf shell, and Docker Compose application packaging are selected for the foundation. See the [foundation decisions](decisions/001-foundation.md) and [running guide](running.md). PostgreSQL deployment and credentials are independently managed infrastructure outside project commits. Tailscale specifies network access rather than the application runtime; public exposure and the host setup remain to be defined. Managed-cloud hosting and scale-to-zero are not prerequisites for learning from the prototype. Another implementation language can be considered afterward if warranted; a rewrite is not required or planned by this decision.
+**Prototype direction: Java and Spring Boot, self-hosted on the maintainer's infrastructure with access through Tailscale.** This reflects the maintainer's strong familiarity with Java and Spring Boot. The build foundation targets Java 25 with Spring Boot 4.2.0 dependency management and Maven 3.10.1 through a checked-in Maven Wrapper. PostgreSQL, JDBC/Flyway, an interactive React/TypeScript client over Spring GraphQL, and Docker Compose application packaging are selected for the foundation. See the [foundation decisions](decisions/001-foundation.md) and [running guide](running.md). PostgreSQL deployment and credentials are independently managed infrastructure outside project commits. Tailscale specifies network access rather than the application runtime; public exposure and the host setup remain to be defined. Managed-cloud hosting and scale-to-zero are not prerequisites for learning from the prototype. Another implementation language can be considered afterward if warranted; a rewrite is not required or planned by this decision.
 
 The following logical boundaries are proposed within one maintainable application. They do not require separate services.
 
@@ -133,7 +133,7 @@ The following logical boundaries are proposed within one maintainable applicatio
 | External adapters | Replaceable interfaces for identity, app notifications, calendar outputs, optional payment processors, and later integrations. Built-in SMS is not part of the preferred initial scope; verification channels remain open. Authenticate applicable provider callbacks. |
 | Portability and operations | Versioned import/export, backups and restore, deployment configuration, protected operational logging, and migration verification. |
 
-The staffing interface will be an interactive frontend using the shared GraphQL API, with strict typing and schema-derived client operation types. The initiative-1 Thymeleaf shell is temporary. Framework/client selection remains open; see [decision 002](decisions/002-graphql-and-interactive-ui.md).
+The controlled staffing pilot implements an interactive React/TypeScript frontend using the shared GraphQL API, strict typing, and schema-derived operation types. It replaces the temporary initiative-1 Thymeleaf shell; see [decision 002](decisions/002-graphql-and-interactive-ui.md).
 
 The principal request flow is: a client calls the API; the application authorizes the action and enforces domain rules; durable storage records the result; eligible follow-up work goes through controlled adapters. A client never receives privileged database access or decides authorization for itself.
 
@@ -159,7 +159,7 @@ Define contact retention/deletion, volunteer consent for migration, historical a
 6. **Staffing edge cases:** Who approves restricted shifts and checks qualifications? What happens when pending requests outnumber capacity, a shift fills before review, or pending requests overlap? How do waitlists, group signup, and post-signup changes interact?
 7. **Contact consent, trust, and portability:** Should phone disclosure be optional or event-required? Who is the remembered organizer, how is permission withdrawn, and does it cover exports or migration? Who handles keys and protected data, including guardian details and independent host access?
 8. **Calendars and mobile notifications:** What is the first supported integration method, and what privacy and delivery guarantees are practical?
-9. **Remaining technology and license choices:** With Java/Spring Boot, the Maven build foundation, and near-term self-hosting through Tailscale as the prototype direction, select the database, frontend, host/runtime setup, application deployment tooling, providers, and a permissive license after evaluating these requirements.
+9. **Remaining technology and license choices:** With Java/Spring Boot, the Maven build foundation, and near-term self-hosting through Tailscale as the prototype direction, review the selected PostgreSQL/React/GraphQL pilot stack, settle provider configuration and real-data policies, and select a permissive license before broader release.
 
 ## 10. Relationship to project notes
 

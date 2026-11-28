@@ -6,7 +6,9 @@ The goal is simple, privacy-conscious event coordination: organizations, reusabl
 
 ## Project status
 
-Initiative 1 implements the runnable Java 25/Spring Boot foundation: a responsive Thymeleaf shell, a small JSON status API, PostgreSQL connectivity, Flyway migrations, container packaging, and database-backed integration tests. Event staffing is initiative 2 and has not been implemented yet. Its required direction is an interactive typed frontend over GraphQL; the Thymeleaf page and JSON status route are temporary foundation capabilities. See [decision 002](docs/decisions/002-graphql-and-interactive-ui.md). PostgreSQL deployment and credentials are independently managed infrastructure, excluded from project commits.
+The first two initiatives now provide a controlled volunteer staffing pilot: a React/TypeScript interface, schema-first GraphQL API, organization-scoped event/job/shift management, signup and cancellation, organizer coverage/assignments, and scoped agent tokens. PostgreSQL/JDBC/Flyway and the non-root application container remain the foundation. See [pilot decisions](docs/decisions/003-staffing-pilot.md) for access rules, the local pilot login option, and the still-deferred guest signup, waitlist, approval, template, notification, and contact-sharing features. The pilot currently uses synthetic identities; no phone or email data is collected.
+
+PostgreSQL deployment and all real credentials are independently managed infrastructure, excluded from project commits. The open-source license remains undecided.
 
 ## Development setup
 
@@ -16,7 +18,7 @@ Use Java 25, Docker, and the checked-in Maven Wrapper (Maven 3.10.1):
 ./mvnw --batch-mode --no-transfer-progress clean verify
 ```
 
-The integration tests automatically use disposable PostgreSQL containers. See [running and recovery](docs/running.md) for application configuration, startup, tailnet access, and backup/restore; [architecture decisions](docs/decisions/001-foundation.md) for selected tools; and [API conventions](docs/api.md) for current endpoints. The wrapper pins Maven 3.10.1 and validates its distribution checksum; no separate Maven install is needed. Spring Boot manages dependency/plugin versions in `pom.xml`; build output is ignored under `target/`. On Windows use `mvnw.cmd`. Database passwords and local connection files must stay outside the checkout.
+The Maven build installs pinned Node tooling locally, uses `npm ci`, validates GraphQL operations, type-checks/builds the frontend, and packages its assets with Spring Boot. Integration tests automatically use disposable PostgreSQL containers. Browser checks run with `scripts/test-ui.sh` after installing the frontend Playwright browser; they start a separate isolated test server/database and create protected synthetic credentials under the ignored `target/` directory. See [running and recovery](docs/running.md) for application configuration, startup, tailnet access, and backup/restore; [architecture decisions](docs/decisions/001-foundation.md) for selected tools; and [API conventions](docs/api.md) for current endpoints. The wrapper pins Maven 3.10.1 and validates its distribution checksum; no separate Maven install is needed. Spring Boot manages dependency/plugin versions in `pom.xml`; build output is ignored under `target/`. On Windows use `mvnw.cmd`. Database passwords and local connection files must stay outside the checkout.
 
 ## Planning space
 

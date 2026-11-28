@@ -10,7 +10,7 @@ User direction · November 27, 2026 · Supersedes the business API and long-term
 
 The application API for browser users, agents, and integrations is **GraphQL**. Build the staffing product around an interactive responsive frontend, with equally important mobile and desktop workflows. The existing Thymeleaf landing page is acceptable as the temporary initiative-1 shell; it does not select server-rendered HTML/form posts as the product interaction model.
 
-The current code has a JSON diagnostic status endpoint and Actuator health routes. It does not yet implement GraphQL or an interactive staffing client. This decision changes the implementation plan, not the reported capabilities of the deployed foundation.
+Initiative 2 implements this direction with Spring GraphQL and an interactive React/TypeScript staffing client. The existing HTTP status and Actuator routes remain diagnostics. See [decision 003](003-staffing-pilot.md) for the selected tools and pilot rules.
 
 ## Backend and contract
 
@@ -28,7 +28,7 @@ Set and test page-size, query depth/complexity, execution, and batch limits. Dec
 
 ## Frontend selection and behavior
 
-Select an interactive framework and client in [issue #17](https://github.com/WhitesboroBandBoosters/RallyBoro/issues/17). Evaluate React and Vue with strict TypeScript against maintainability and organizer/volunteer workflows. These are candidates; neither is selected by this note. Generate operation-specific types from the checked-in schema and client operations, validate operations during builds, and retain server-side validation.
+Select an interactive framework and client in [issue #17](https://github.com/WhitesboroBandBoosters/RallyBoro/issues/17). Evaluate React and Vue with strict TypeScript against maintainability and organizer/volunteer workflows. React is selected by decision 003; this note records the original candidate evaluation boundary. Generate operation-specific types from the checked-in schema and client operations, validate operations during builds, and retain server-side validation.
 
 The product interface should support client-side navigation, inline validation, visible pending/loading/error/empty states, clear mutation results, and refreshed capacity/status after changes. Preserve keyboard accessibility, deep links, and narrow/wide layouts. Optimistic updates must never present a place as confirmed before authoritative acceptance. Refreshing data does not require subscriptions or offline replication.
 

@@ -19,6 +19,7 @@
 
     <properties>
         <java.version>25</java.version>
+        <frontend.skip>false</frontend.skip>
     </properties>
 
     <dependencies>
@@ -28,7 +29,7 @@
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-thymeleaf</artifactId>
+            <artifactId>spring-boot-starter-graphql</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -65,8 +66,27 @@
             <artifactId>testcontainers-jdbc</artifactId>
             <scope>test</scope>
         </dependency>
+        <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-security</artifactId></dependency>
+        <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-security-oauth2-client</artifactId></dependency>
+        <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-graphql-test</artifactId><scope>test</scope></dependency>
+        <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-security-test</artifactId><scope>test</scope></dependency>
     </dependencies>
-    <build><plugins><plugin>
+    <build>
+        <resources>
+            <resource><directory>src/main/resources</directory></resource>
+            <resource><directory>frontend/dist</directory><targetPath>static</targetPath></resource>
+        </resources>
+        <plugins>
+        <plugin>
+            <groupId>com.github.eirslett</groupId><artifactId>frontend-maven-plugin</artifactId><version>2.0.2</version>
+            <configuration><workingDirectory>frontend</workingDirectory><installDirectory>target/frontend-tools</installDirectory><skip>${frontend.skip}</skip></configuration>
+            <executions>
+                <execution><id>node</id><goals><goal>install-node-and-npm</goal></goals><configuration><nodeVersion>v24.22.3</nodeVersion></configuration></execution>
+                <execution><id>npm-ci</id><goals><goal>npm</goal></goals><configuration><arguments>ci --no-audit --no-fund</arguments></configuration></execution>
+                <execution><id>frontend-build</id><goals><goal>npm</goal></goals><configuration><arguments>run build</arguments></configuration></execution>
+            </executions>
+        </plugin>
+        <plugin>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-maven-plugin</artifactId>
     </plugin></plugins></build>

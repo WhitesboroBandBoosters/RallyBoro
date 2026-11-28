@@ -26,7 +26,7 @@ Build these as small complete slices. After the prerequisites, #11 should alread
 
 ## UI and API prerequisite
 
-The user/agent business API is GraphQL, and the pilot UI must be interactive with strong typing, not a continuation of the temporary Thymeleaf/form-post shell. [Decision 002](../docs/decisions/002-graphql-and-interactive-ui.md) defines the direction. Complete [frontend/client selection #17](https://github.com/WhitesboroBandBoosters/RallyBoro/issues/17) and [GraphQL foundation #18](https://github.com/WhitesboroBandBoosters/RallyBoro/issues/18), coordinating identity with #10, before the first staffing slice (#11). Framework selection remains open.
+The user/agent business API is GraphQL, and the pilot UI must be interactive with strong typing, not a continuation of the temporary Thymeleaf/form-post shell. [Decision 002](../docs/decisions/002-graphql-and-interactive-ui.md) defines the direction. Complete [frontend/client selection #17](https://github.com/WhitesboroBandBoosters/RallyBoro/issues/17) and [GraphQL foundation #18](https://github.com/WhitesboroBandBoosters/RallyBoro/issues/18), coordinating identity with #10, before the first staffing slice (#11). React/TypeScript and GraphQL Request are selected; [decision 003](../docs/decisions/003-staffing-pilot.md) records the pilot rules.
 
 ## Scope and sequence
 
@@ -74,3 +74,9 @@ Track current progress in [initiative #2](https://github.com/WhitesboroBandBoost
 
 - [#17: Select interactive typed frontend and GraphQL client](https://github.com/WhitesboroBandBoosters/RallyBoro/issues/17)
 - [#18: Establish shared GraphQL API and schema contract](https://github.com/WhitesboroBandBoosters/RallyBoro/issues/18)
+
+## Implementation evidence
+
+See [initiative 2 verification](../docs/initiative-2-verification.md) and [pilot decisions](../docs/decisions/003-staffing-pilot.md). PR #16 contains the implementation; linked issues remain open until merge.
+
+Google provider setup is tracked separately in [#19](https://github.com/WhitesboroBandBoosters/RallyBoro/issues/19); the controlled synthetic pilot can run with explicitly enabled local Spring Security accounts.

@@ -1,0 +1,36 @@
+{
+  "name": "rallyboro-ui",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "generate": "graphql-codegen --config codegen.ts",
+    "check": "npm run generate && tsc --noEmit",
+    "build": "npm run check && vite build",
+    "dev": "vite --host 127.0.0.1",
+    "test:e2e": "playwright test"
+  },
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "dependencies": {
+    "@js-temporal/polyfill": "0.5.1",
+    "graphql": "16.15.0",
+    "graphql-request": "7.4.0",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "react-router-dom": "7.18.7"
+  },
+  "devDependencies": {
+    "@graphql-codegen/cli": "8.0.0",
+    "@graphql-codegen/typed-document-node": "8.0.0",
+    "@graphql-codegen/typescript-operations": "7.0.3",
+    "@playwright/test": "1.65.1",
+    "@types/react": "19.3.3",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.3.0",
+    "prettier": "3.10.1",
+    "typescript": "7.0.2",
+    "vite": "8.4.0"
+  }
+}

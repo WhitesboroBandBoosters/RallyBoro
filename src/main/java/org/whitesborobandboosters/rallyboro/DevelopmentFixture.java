@@ -11,18 +11,19 @@ import org.springframework.stereotype.Component;
 @Profile("development & !production")
 @ConditionalOnProperty(name = "rallyboro.fixture.enabled", havingValue = "true")
 public class DevelopmentFixture implements ApplicationRunner {
-    private final JdbcTemplate jdbc;
+  private final JdbcTemplate jdbc;
 
-    public DevelopmentFixture(JdbcTemplate jdbc) {
-        this.jdbc = jdbc;
-    }
+  public DevelopmentFixture(JdbcTemplate jdbc) {
+    this.jdbc = jdbc;
+  }
 
-    @Override
-    public void run(ApplicationArguments args) {
-        jdbc.update("""
-            INSERT INTO foundation_probe (id, description)
-            VALUES ('development-fixture', 'Synthetic persistence verification')
-            ON CONFLICT (id) DO NOTHING
-            """);
-    }
+  @Override
+  public void run(ApplicationArguments args) {
+    jdbc.update(
+        """
+        INSERT INTO foundation_probe (id, description)
+        VALUES ('development-fixture', 'Synthetic persistence verification')
+        ON CONFLICT (id) DO NOTHING
+        """);
+  }
 }
